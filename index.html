@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Min dag</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/icon-32.png">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="theme-color" content="#FFF3B8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#33290F" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Min dag">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#FFF3B8; --surface:#FFFFFF; --ink:#3A2430; --muted:#86697A; --line:#F9DAE5; --edge:#F2BFD0;
+  --accent:#F8B4CB; --accent-ink:#4A1230; --soft:#FFEEF4; --danger:#C2301F; --focus:#D81B60;
+  --sun:#FFEBA8; --sun-soft:#FFFAE3; --sun-line:#F9E08C; --hero-a:#FFC9DD; --hero-b:#FFE0EA;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#33290F; --surface:#443818; --ink:#FFF6D6; --muted:#DACD9A; --line:#665828;
+    --accent:#FF7BAE; --accent-ink:#3A0A22; --soft:#46203A; --danger:#FF9A88; --focus:#FFB3CC;
+    --sun:#FFD43B; --sun-soft:#4A3E12; --sun-line:#C9A227; --hero-a:#6A2850; --hero-b:#5A4A12;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#33290F; --surface:#443818; --ink:#FFF6D6; --muted:#DACD9A; --line:#665828;
+  --accent:#FF7BAE; --accent-ink:#3A0A22; --soft:#46203A; --danger:#FF9A88; --focus:#FFB3CC;
+  --sun:#FFD43B; --sun-soft:#4A3E12; --sun-line:#C9A227; --hero-a:#6A2850; --hero-b:#5A4A12;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Figtree',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:16px;line-height:1.45}
+main{max-width:560px;margin:0 auto;padding:20px 18px 120px}
+h1,h2,h3{font-family:'Bricolage Grotesque','Figtree',system-ui,sans-serif;margin:0;line-height:1.15}
+h1{font-size:32px;font-weight:700;letter-spacing:-.01em}
+h2{font-size:20px;font-weight:600;margin:28px 0 10px}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.date{color:var(--muted);font-size:15px;margin-bottom:4px}
+.hd{margin-bottom:18px;padding:18px 18px 16px;border-radius:22px;background:linear-gradient(135deg,var(--hero-a),var(--hero-b))}
+.hd .date{color:var(--ink);opacity:.75}
+.muted{color:var(--muted)}
+
+.prog{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:15px;color:var(--muted)}
+.bar{flex:1;height:10px;border-radius:99px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--sun));border-radius:99px;transition:width .3s}
+
+.habit{display:flex;align-items:center;gap:14px;width:100%;min-height:64px;padding:12px 16px;margin-bottom:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;text-align:left}
+.habit .chk{flex:none;width:30px;height:30px;border-radius:10px;border:2px solid var(--edge,var(--line));display:grid;place-items:center;font-weight:700;color:var(--accent-ink)}
+.habit .tx{flex:1;min-width:0}
+.habit .nm{display:block;font-weight:500;font-size:17px}
+.habit .sub2{display:block;font-size:13px;color:var(--muted)}
+.habit.on{background:var(--sun-soft);border-color:var(--sun-line)}
+.habit.on .chk{background:var(--accent);border-color:var(--accent)}
+.habit.dim{opacity:.7}
+
+.strip{position:relative;height:44px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);overflow:hidden}
+.strip .seg{position:absolute;top:0;bottom:0;min-width:2px}
+.strip .now{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.7}
+.ticks{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;flex:none}
+
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:16px}
+.running{background:var(--sun-soft);border-color:var(--sun-line);margin-bottom:6px}
+.running .big{font-family:'Bricolage Grotesque',sans-serif;font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1;margin:4px 0 12px}
+.btn{min-height:48px;padding:0 20px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.warn{color:var(--danger);border-color:var(--danger)}
+.btn.small{min-height:40px;padding:0 14px;font-size:14px}
+.cats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cat{display:flex;align-items:center;gap:10px;min-height:56px;padding:10px 14px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);text-align:left;font-weight:500}
+.cat.act{border-color:var(--accent);background:var(--soft)}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{min-width:0}
+.fld{display:block;flex:1}
+.fld span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=number],input[type=time],select,textarea{width:100%;min-height:48px;padding:10px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font:inherit;font-size:16px}
+textarea{min-height:96px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+textarea.note{min-height:120px;font-size:16px;font-family:'Figtree',system-ui,sans-serif;line-height:1.45;resize:vertical;background:var(--surface)}
+input.note{background:var(--surface)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:10px}
+.cal .wd{text-align:center;font-size:12px;color:var(--muted);padding-bottom:2px}
+.cd{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:space-between;aspect-ratio:1/1.15;max-width:100%;padding:5px 2px 4px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);min-width:0}
+.cd .n{font-weight:600;font-size:15px;font-variant-numeric:tabular-nums}
+.cd .mk{display:flex;align-items:center;gap:3px;font-size:10px;font-weight:600;min-height:12px;color:var(--muted)}
+.cd.m{border-color:transparent}
+.cd.m .n,.cd.m .mk{color:#3A2430}
+.cd.today{outline:2.5px solid var(--focus);outline-offset:1px}
+.cd[disabled]{opacity:.35;cursor:default}
+.nd,.nd2{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-ink)}
+.cd:not(.m) .nd{background:var(--accent)}
+.nd2{width:10px;height:10px;background:var(--accent)}
+.cat .ck{flex:none;width:24px;height:24px;border-radius:8px;border:2px solid;display:grid;place-items:center;font-size:14px;font-weight:700;color:#fff}
+.cd .ad{display:flex;gap:2px;min-height:5px;justify-content:center;flex-wrap:wrap}
+.cd .ad i{width:5px;height:5px;border-radius:50%;box-shadow:0 0 0 1px var(--surface)}
+.moods.two{grid-template-columns:1fr 1fr}
+.idea{display:grid;gap:10px;background:var(--sun-soft);border-color:var(--sun-line)}
+.idea-t{font-family:'Bricolage Grotesque','Figtree',sans-serif;font-size:21px;font-weight:600;line-height:1.25;text-wrap:balance}
+.btn[disabled]{opacity:.55;cursor:default}
+.saved{font-size:13px;color:var(--muted);min-height:18px;text-align:right}
+input[type=color]{width:44px;height:44px;border:none;background:none;padding:0;flex:none}
+.stack{display:grid;gap:12px}
+.list{list-style:none;margin:0;padding:0}
+.list>li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.list .grow{flex:1;min-width:0}
+.list .sub{font-size:13px;color:var(--muted)}
+.x{flex:none;width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--muted);font-size:20px;line-height:1}
+
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.daynav b{font-family:'Bricolage Grotesque',sans-serif;font-size:20px;text-align:center;flex:1}
+.x[disabled]{opacity:.35;cursor:default}
+
+.seg2{display:inline-flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.seg2 button{border:none;background:none;min-height:40px;padding:0 18px;font-weight:600;color:var(--muted)}
+.seg2 button.on{background:var(--accent);color:var(--accent-ink)}
+.hbar{margin:12px 0}
+.hbar .top{display:flex;justify-content:space-between;gap:10px;font-size:15px;margin-bottom:5px}
+.hbar .track{height:14px;border-radius:99px;background:var(--line);overflow:hidden}
+.hbar .track i{display:block;height:100%;border-radius:99px}
+.week{display:flex;gap:5px;margin-top:8px}
+.week b{flex:1;height:22px;border-radius:7px;background:var(--line)}
+.week b.on{background:var(--accent)}
+.wlabels{display:flex;gap:5px;font-size:11px;color:var(--muted);margin-top:3px}
+.wlabels span{flex:1;text-align:center}
+.cols{display:flex;align-items:flex-end;gap:3px;height:130px}
+.cols .col{flex:1;height:100%;display:flex;flex-direction:column-reverse;border-radius:5px;overflow:hidden;background:transparent}
+.clabels{display:flex;gap:3px;font-size:11px;color:var(--muted);margin-top:4px}
+.clabels span{flex:1;text-align:center;overflow:visible;white-space:nowrap}
+.moods{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mood{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:72px;padding:8px 2px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);font-size:26px;line-height:1.1}
+.mood small{font-size:11px;color:var(--muted);text-align:center;line-height:1.15}
+.mood.on{border-color:var(--accent);background:var(--soft)}
+.mood .ico{display:block;width:46px;height:46px}
+.mood svg{display:block;width:100%;height:100%}
+.moods.sm .mood .ico{width:34px;height:34px}
+.moods.has .mood:not(.on) .ico{opacity:.5}
+.moods.sm .mood{min-height:56px;font-size:22px}
+.empty{padding:22px 16px;text-align:center;color:var(--muted);border:1.5px dashed var(--line);border-radius:16px}
+
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;background:var(--surface);border-top:1.5px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
+nav .in{display:flex;width:100%;max-width:560px;gap:4px}
+nav button{flex:1;min-height:52px;border:none;background:none;border-radius:12px;font-weight:600;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+nav button i{width:22px;height:4px;border-radius:99px;background:transparent}
+nav button.on{color:var(--ink)}
+nav button.on i{background:var(--sun);width:30px}
+nav button.on{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main id="view"></main>
+<nav><div class="in" id="tabs"></div></nav>
+
+<script>
+(function(){
+'use strict';
+var KEY='min-dag-v1';
+var VERSION='1.10.0', SNAPKEY='min-dag-snapshots';
+var CHANGELOG=[
+  ['1.10.0','Energi och sömn varje dag samt förslag på saker som får dig att må bra.'],
+  ['1.9.0','Bocka i vad du gjort under dagen, som Socialt eller Charlie, istället för att ta tid. Tid-fliken är borttagen.'],
+  ['1.8.1','Idag visar bara humöret för dagen. Tidigare dagar fyller du i via kalendern.'],
+  ['1.8.0','Kalender: se humör, vanor och anteckningar per dag och fyll i tidigare dagar i efterhand.'],
+  ['1.7.0','Dagbok: skriv en kort anteckning om dagen och något du är tacksam över.'],
+  ['1.6.0','Versionshantering: versionsnummer, ändringslogg och sparade versioner av din data.'],
+  ['1.5.0','Humör med fyra nivåer och nya ansiktsikoner.'],
+  ['1.4.0','Rosa och gult utseende samt val av ljust eller mörkt.'],
+  ['1.3.0','Humör varje dag, med översikt och samband med tid och vanor.'],
+  ['1.2.0','Egna vanor med frekvens, tidsområden som Socialt, Charlie, Sömn och Träning samt dagsfördelning.'],
+  ['1.0.0','Första versionen med vanor, tidsloggning och översikt.']
+];
+var TABS=[['idag','Idag'],['kalender','Kalender'],['over','Översikt'],['anpassa','Anpassa']];
+var tab='idag', range=7, confirmReset=false, tickTimer=null, selDay=0, editId=null, confirmSnap=null;
+var calY=new Date().getFullYear(), calM=new Date().getMonth();
+
+function defaults(){
+  return {
+    v:4,
+    habits:[
+      {id:'h1',name:'Dricka vatten',per:'day',n:1},
+      {id:'h2',name:'Röra på mig',per:'day',n:1},
+      {id:'h3',name:'Gå och lägga mig i tid',per:'day',n:1},
+      {id:'h4',name:'Tid för mig själv',per:'week',n:2}
+    ],
+    cats:[
+      {id:'c4',name:'Socialt',color:'#E64980'},
+      {id:'c8',name:'Charlie',color:'#F59F00'},
+      {id:'c9',name:'Sömn',color:'#7950F2'},
+      {id:'c3',name:'Träning',color:'#12B886'}
+    ],
+    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, entries:[], running:null
+  };
+}
+function migrate(d){
+  var oldV=d.v,base=defaults();
+  for(var k in base){if(d[k]===undefined)d[k]=base[k];}
+  if(!oldV){
+    var ids=d.cats.map(function(c){return c.id;}).join(',');
+    if(ids==='c1,c2,c3,c4,c5,c6,c7')d.cats=base.cats;
+    d.habits.forEach(function(x){if(!x.per){x.per='day';x.n=1;}});
+  }
+  if(oldV===2){for(var mk in d.mood){d.mood[mk]=Math.round((d.mood[mk]-1)*3/4)+1;}}
+  if(!oldV||oldV<4){
+    var add=function(cid,ms){var key=dk(new Date(ms));var a=d.acts[key]||(d.acts[key]=[]);if(a.indexOf(cid)<0)a.push(cid);};
+    (d.entries||[]).forEach(function(x){add(x.cat,x.s);});
+    if(d.running)add(d.running.cat,d.running.s);
+    d.running=null;
+  }
+  d.v=4;
+  return d;
+}
+function load(){
+  try{
+    var r=localStorage.getItem(KEY);
+    if(r)return migrate(JSON.parse(r));
+  }catch(e){}
+  return defaults();
+}
+var S=load();
+function applyTheme(){
+  var t=S.theme||'auto',r=document.documentElement;
+  if(t==='auto')r.removeAttribute('data-theme');else r.setAttribute('data-theme',t);
+}
+applyTheme();
+autoSnap();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+function loadSnaps(){try{var r=localStorage.getItem(SNAPKEY);return r?JSON.parse(r):[];}catch(e){return [];}}
+function saveSnaps(a){try{localStorage.setItem(SNAPKEY,JSON.stringify(a.slice(-20)));return true;}catch(e){return false;}}
+function addSnap(label){
+  var a=loadSnaps();
+  a.push({id:uid(),t:Date.now(),label:label,data:JSON.stringify(S)});
+  return saveSnaps(a);
+}
+function autoSnap(){
+  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length;
+  if(!has)return;
+  var a=loadSnaps(),today=dk(new Date());
+  var last=a.filter(function(x){return x.label==='Automatisk';}).pop();
+  if(last&&dk(new Date(last.t))===today)return;
+  addSnap('Automatisk');
+}
+function restoreSnap(id){
+  var sn=null;
+  loadSnaps().forEach(function(x){if(x.id===id)sn=x;});
+  if(!sn)return;
+  try{
+    var d=migrate(JSON.parse(sn.data));
+    addSnap('Före återställning');
+    S=d;save();
+  }catch(e){}
+  render();
+}
+function uid(){return 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+function h(t,a){
+  var e=document.createElement(t);a=a||{};
+  for(var k in a){
+    if(k==='class')e.className=a[k];
+    else if(k.indexOf('on')===0)e.addEventListener(k.slice(2),a[k]);
+    else if(k==='style')e.style.cssText=a[k];
+    else if(a[k]!==null&&a[k]!==undefined)e.setAttribute(k,a[k]);
+  }
+  for(var i=2;i<arguments.length;i++){
+    var c=arguments[i];
+    (Array.isArray(c)?c:[c]).forEach(function(x){
+      if(x===null||x===undefined||x===false)return;
+      e.append(x.nodeType?x:document.createTextNode(String(x)));
+    });
+  }
+  return e;
+}
+
+function dk(d){
+  d=d||new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function dayStart(d){return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function fmtDate(d){return cap(d.toLocaleDateString('sv-SE',{weekday:'long',day:'numeric',month:'long'}));}
+function hhmm(ms){var d=new Date(ms);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function fmtDur(min){
+  min=Math.round(min);
+  if(min<60)return min+' min';
+  var hh=Math.floor(min/60),m=min%60;
+  return m?hh+' h '+m+' min':hh+' h';
+}
+function fmtClock(ms){
+  var s=Math.max(0,Math.floor(ms/1000));
+  var hh=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;
+  return (hh?hh+':':'')+String(m).padStart(hh?2:1,'0')+':'+String(ss).padStart(2,'0');
+}
+function greeting(){
+  var hr=new Date().getHours();
+  return hr<10?'God morgon':hr<18?'Hej':'God kväll';
+}
+function cat(id){
+  for(var i=0;i<S.cats.length;i++)if(S.cats[i].id===id)return S.cats[i];
+  return {id:id,name:'Borttagen kategori',color:'#868E96'};
+}
+function selDate(){var d=new Date();d.setDate(d.getDate()+selDay);return d;}
+
+/* ---------- vanor ---------- */
+function toggle(id,k){
+  var a=S.done[k]||[];
+  var i=a.indexOf(id);
+  if(i>=0)a.splice(i,1);else a.push(id);
+  S.done[k]=a;save();render();
+}
+function perOf(hb){return hb.per||'day';}
+function nOf(hb){return hb.n||1;}
+function wkStart(d){
+  var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  x.setDate(x.getDate()-((x.getDay()+6)%7));
+  return x;
+}
+function periodRange(per,ref){
+  if(per==='week'){var a=wkStart(ref);var b=new Date(a);b.setDate(b.getDate()+6);return [a,b];}
+  return [new Date(ref.getFullYear(),ref.getMonth(),1),new Date(ref.getFullYear(),ref.getMonth()+1,0)];
+}
+function prevPeriod(per,ref){
+  if(per==='week'){var r=new Date(ref);r.setDate(r.getDate()-7);return r;}
+  return new Date(ref.getFullYear(),ref.getMonth()-1,1);
+}
+function countIn(id,a,b){
+  var c=0,d=new Date(a);
+  while(d<=b){if((S.done[dk(d)]||[]).indexOf(id)>=0)c++;d.setDate(d.getDate()+1);}
+  return c;
+}
+function progressOf(hb,ref){
+  var p=perOf(hb);
+  if(p==='day')return 0;
+  var r=periodRange(p,ref||new Date());
+  return countIn(hb.id,r[0],r[1]);
+}
+function streak(hb){
+  var p=perOf(hb),c=0,i;
+  if(p==='day'){
+    var d=new Date();
+    if((S.done[dk(d)]||[]).indexOf(hb.id)<0)d.setDate(d.getDate()-1);
+    while((S.done[dk(d)]||[]).indexOf(hb.id)>=0){c++;d.setDate(d.getDate()-1);}
+    return c;
+  }
+  var ref=new Date(),n=nOf(hb),r=periodRange(p,ref);
+  if(countIn(hb.id,r[0],r[1])<n)ref=prevPeriod(p,ref);
+  for(i=0;i<600;i++){
+    r=periodRange(p,ref);
+    if(countIn(hb.id,r[0],r[1])>=n){c++;ref=prevPeriod(p,ref);}else break;
+  }
+  return c;
+}
+function freqLabel(hb){
+  var p=perOf(hb),n=nOf(hb);
+  if(p==='day')return 'Varje dag';
+  return (n===1?'En gång':n+' gånger')+' per '+(p==='week'?'vecka':'månad');
+}
+function streakText(hb){
+  var s=streak(hb),p=perOf(hb);
+  if(!s)return '';
+  var u=p==='day'?['dag','dagar']:p==='week'?['vecka','veckor']:['månad','månader'];
+  return s+' '+(s===1?u[0]:u[1])+' i rad';
+}
+
+/* ---------- tid ---------- */
+function actsOn(d){return (S.acts&&S.acts[dk(d)])||[];}
+function toggleAct(id,d){
+  if(!S.acts)S.acts={};
+  var k=dk(d),a=(S.acts[k]||[]).slice(),i=a.indexOf(id);
+  if(i>=0)a.splice(i,1);else a.push(id);
+  if(a.length)S.acts[k]=a;else delete S.acts[k];
+  save();render();
+}
+
+/* ---------- humör ---------- */
+var MOODS=['Dåligt','Så där','Bra','Jättebra'];
+var MCOL=['#F4958E','#F8C471','#B5DE95','#7FCFAE'];
+var FACE='#3A2430';
+function moodIcon(i){
+  var st='stroke="'+FACE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  var eyes='<circle cx="17" cy="21" r="2.6" fill="'+FACE+'"/><circle cx="31" cy="21" r="2.6" fill="'+FACE+'"/>';
+  var blush='<circle cx="11" cy="30" r="3.2" fill="#FF8FB1" opacity=".55"/><circle cx="37" cy="30" r="3.2" fill="#FF8FB1" opacity=".55"/>';
+  var s='<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="'+MCOL[i]+'"/>';
+  if(i===0){s+=eyes+'<path d="M16 35 Q24 26 32 35" '+st+'/>';}
+  else if(i===1){s+=eyes+'<path d="M17 32 Q24 34 31 32" '+st+'/>';}
+  else if(i===2){s+=eyes+blush+'<path d="M16 29 Q24 38 32 29" '+st+'/>';}
+  else{s+='<path d="M12 22 Q17 15 22 22" '+st+'/><path d="M26 22 Q31 15 36 22" '+st+'/>'+blush+'<path d="M15 29 Q24 43 33 29 Z" fill="'+FACE+'" stroke="'+FACE+'" stroke-width="2" stroke-linejoin="round"/>';}
+  var sp=document.createElement('span');
+  sp.className='ico';
+  sp.innerHTML=s+'</svg>';
+  return sp;
+}
+function moodOf(d){return (S.mood&&S.mood[dk(d)])||0;}
+function setMood(d,val){
+  if(!S.mood)S.mood={};
+  var k=dk(d);
+  if(S.mood[k]===val)delete S.mood[k];else S.mood[k]=val;
+  save();render();
+}
+function f1(x){return x.toFixed(1).replace('.',',');}
+function moodRow(d,small){
+  var cur=moodOf(d);
+  return h('div',{class:'moods'+(small?' sm':'')+(cur?' has':''),role:'group','aria-label':'Hur mår du'},MOODS.map(function(m,i){
+    var val=i+1;
+    return h('button',{class:'mood'+(cur===val?' on':''),'aria-pressed':cur===val?'true':'false','aria-label':m,onclick:function(){setMood(d,val);}},moodIcon(i),h('small',{},m));
+  }));
+}
+/* ---------- energi ---------- */
+var ENERGY=['Slut','Trött','Okej','Pigg'];
+function energyIcon(i){
+  var s='<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="'+MCOL[i]+'"/>'+
+    '<rect x="9" y="16" width="26" height="16" rx="4" fill="none" stroke="'+FACE+'" stroke-width="3"/>'+
+    '<rect x="36" y="20.5" width="4" height="7" rx="1.5" fill="'+FACE+'"/>';
+  for(var j=0;j<=i;j++)s+='<rect x="'+(13+j*5)+'" y="20" width="3.4" height="8" rx="1" fill="'+FACE+'"/>';
+  var sp=document.createElement('span');sp.className='ico';sp.innerHTML=s+'</svg>';return sp;
+}
+function energyOf(d){return (S.energy&&S.energy[dk(d)])||0;}
+function setEnergy(d,val){
+  if(!S.energy)S.energy={};
+  var k=dk(d);
+  if(S.energy[k]===val)delete S.energy[k];else S.energy[k]=val;
+  save();render();
+}
+function energyRow(d){
+  var cur=energyOf(d);
+  return h('div',{class:'moods'+(cur?' has':''),role:'group','aria-label':'Hur mycket energi har du'},ENERGY.map(function(m,i){
+    var val=i+1;
+    return h('button',{class:'mood'+(cur===val?' on':''),'aria-pressed':cur===val?'true':'false','aria-label':m,onclick:function(){setEnergy(d,val);}},energyIcon(i),h('small',{},m));
+  }));
+}
+
+/* ---------- sömn ---------- */
+var SLEEP=[['Sov dåligt',1],['Sov gott',2]];
+function sleepIcon(good){
+  var col=good?MCOL[3]:MCOL[0];
+  var st='stroke="'+FACE+'" stroke-width="3" stroke-linecap="round" fill="none"';
+  var s='<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="'+col+'"/>'+
+    '<path d="M27 11 A14 14 0 1 0 37 31 A11 11 0 1 1 27 11 Z" fill="#FFF6D6" stroke="'+FACE+'" stroke-width="2.5" stroke-linejoin="round"/>';
+  s+=good?'<path d="M17 27 Q19.5 30 22 27" '+st+'/>':'<path d="M17 29 Q19.5 26 22 29" '+st+'/>';
+  s+='<path d="M33 9 h5 l-5 6 h5" stroke="'+FACE+'" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>';
+  var sp=document.createElement('span');sp.className='ico';sp.innerHTML=s+'</svg>';return sp;
+}
+function sleepOf(d){return (S.sleep&&S.sleep[dk(d)])||0;}
+function setSleep(d,val){
+  if(!S.sleep)S.sleep={};
+  var k=dk(d);
+  if(S.sleep[k]===val)delete S.sleep[k];else S.sleep[k]=val;
+  save();render();
+}
+function sleepRow(d){
+  var cur=sleepOf(d);
+  return h('div',{class:'moods two'+(cur?' has':''),role:'group','aria-label':'Hur sov du'},SLEEP.map(function(o){
+    return h('button',{class:'mood'+(cur===o[1]?' on':''),'aria-pressed':cur===o[1]?'true':'false','aria-label':o[0],onclick:function(){setSleep(d,o[1]);}},sleepIcon(o[1]===2),h('small',{},o[0]));
+  }));
+}
+
+/* ---------- förslag ---------- */
+var IDEAS_LOW=['Läs några sidor i en bok','Ta en varm dusch eller ett bad','Lyssna på musik eller en podd du gillar','Drick en kopp te och sitt still en stund','Gör lugn yoga eller stretching','Vila en stund utan mobilen','Skriv ner tre saker som gått bra idag','Andas lugnt i några minuter','Tänd ett ljus och gör det mysigt','Gå och lägg dig lite tidigare ikväll','Gå ut och få lite frisk luft en stund','Se en favoritfilm under en filt'];
+var IDEAS_HIGH=['Gör ett yogapass','Ta en promenad i naturen','Dansa till en favoritlåt','Ring eller träffa en vän','Laga något gott från grunden','Städa ett litet hörn hemma','Prova något nytt, som att teckna eller lägga pussel','Gå till biblioteket och låna en bok','Ta en promenad och lyssna på en podd','Planera något roligt att se fram emot','Gör något kreativt, som att måla eller skriva','Gör något fint för någon annan'];
+var ideaShift=0;
+function ideaList(){
+  var e=energyOf(new Date());
+  if(e===1||e===2)return IDEAS_LOW;
+  if(e===3||e===4)return IDEAS_HIGH;
+  return IDEAS_LOW.concat(IDEAS_HIGH);
+}
+function ideaCard(){
+  var list=ideaList(),d=new Date(),seed=d.getFullYear()*372+d.getMonth()*31+d.getDate();
+  var idea=list[(seed+ideaShift)%list.length];
+  var exists=S.habits.some(function(x){return x.name.toLowerCase()===idea.toLowerCase();});
+  var e=energyOf(d);
+  return h('div',{class:'card idea'},
+    h('p',{class:'muted',style:'font-size:13px'},e?(e<=2?'Något lugnt när du är trött':'Något för dig som har energi'):'Fyll i din energi så anpassas förslagen'),
+    h('p',{class:'idea-t'},idea),
+    h('div',{class:'row',style:'flex-wrap:wrap;gap:8px'},
+      h('button',{class:'btn small',onclick:function(){ideaShift++;render();}},'Visa ett annat'),
+      h('button',{class:'btn small primary',disabled:exists?'disabled':null,onclick:function(){
+        if(exists)return;
+        S.habits.push({id:uid(),name:idea,per:'week',n:2});save();render();
+      }},exists?'Finns bland dina vanor':'Lägg till som vana')));
+}
+
+function dayLabels(days){
+  var wd=['sö','må','ti','on','to','fr','lö'],step=range===30?5:15;
+  return h('div',{class:'clabels'},days.map(function(d,idx){
+    if(range===7)return h('span',{},wd[d.getDay()]);
+    return h('span',{},idx%step===0?String(d.getDate()):'');
+  }));
+}
+
+/* ---------- vyer ---------- */
+function dayTitle(off,d){return off===0?'Idag':off===-1?'Igår':fmtDate(d);}
+function dayNav(){
+  var date=selDate(),isToday=selDay===0;
+  var next=h('button',{class:'x','aria-label':'Nästa dag',onclick:function(){if(selDay<0){selDay++;render();}}},'›');
+  if(isToday)next.setAttribute('disabled','disabled');
+  return h('div',{class:'daynav'},
+    h('button',{class:'x','aria-label':'Föregående dag',onclick:function(){selDay--;render();}},'‹'),
+    h('b',{},dayTitle(selDay,date)),
+    next);
+}
+function offsetOf(d){return Math.round((dayStart(d)-dayStart(new Date()))/86400000);}
+
+function viewIdag(v){
+  var now=selDate(),isToday=selDay===0,k=dk(now),done=S.done[k]||[];
+  v.append(h('header',{class:'hd'},h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting():selDay===-1?'Igår':'Tillbaka i tiden')));
+  v.append(dayNav());
+  if(!isToday){
+    v.append(h('div',{class:'row',style:'justify-content:space-between;margin:4px 0 6px'},
+      h('p',{class:'muted',style:'font-size:14px'},'Du ändrar en tidigare dag.'),
+      h('button',{class:'btn small',onclick:function(){selDay=0;render();}},'Till idag')));
+  }
+
+  v.append(h('h2',{style:'margin-top:14px'},isToday?'Hur sov du i natt?':'Hur sov du natten innan?'));
+  v.append(sleepRow(now));
+  v.append(h('h2',{},isToday?'Hur mår du idag?':'Hur mådde du?'));
+  v.append(moodRow(now,false));
+  v.append(h('h2',{},isToday?'Hur mycket energi har du?':'Hur mycket energi hade du?'));
+  v.append(energyRow(now));
+  if(isToday){
+    v.append(h('h2',{},'Förslag för att må bra'));
+    v.append(ideaCard());
+  }
+  v.append(h('h2',{},'Vanor'));
+  var due=0,doneDue=0;
+  S.habits.forEach(function(hb){
+    var on=done.indexOf(hb.id)>=0;
+    var open=perOf(hb)==='day'||on||progressOf(hb,now)<nOf(hb);
+    if(open){due++;if(on)doneDue++;}
+  });
+  v.append(h('div',{class:'prog'},
+    h('div',{class:'bar'},h('i',{style:'width:'+(due?doneDue/due*100:0)+'%'})),
+    h('span',{},doneDue+' av '+due+' klara')));
+
+  if(!S.habits.length){
+    v.append(h('div',{class:'empty'},'Du har inga vanor ännu. Lägg till din första under Anpassa.'));
+  }
+  S.habits.forEach(function(hb){
+    var on=done.indexOf(hb.id)>=0,p=perOf(hb),n=nOf(hb),st=isToday?streakText(hb):'',sub;
+    var met=false;
+    if(p==='day'){sub=st;}
+    else{
+      var pr=progressOf(hb,now);
+      met=pr>=n;
+      sub=pr+' av '+n+(p==='week'?(isToday?' den här veckan':' den veckan'):(isToday?' den här månaden':' den månaden'))+(met?', målet nått':'')+(st?' · '+st:'');
+    }
+    v.append(h('button',{class:'habit'+(on?' on':'')+(met&&!on?' dim':''),'aria-pressed':on?'true':'false',onclick:function(){toggle(hb.id,k);}},
+      h('span',{class:'chk'},on?'✓':''),
+      h('span',{class:'tx'},h('span',{class:'nm'},hb.name),sub?h('span',{class:'sub2'},sub):null)));
+  });
+
+  v.append(h('h2',{},isToday?'Vad har du gjort idag?':'Vad gjorde du?'));
+  if(!S.cats.length){
+    v.append(h('div',{class:'empty'},'Lägg till saker att bocka i under Anpassa.'));
+  }else{
+    var acts=actsOn(now);
+    v.append(h('div',{class:'cats'},S.cats.map(function(c){
+      var on=acts.indexOf(c.id)>=0;
+      return h('button',{class:'cat'+(on?' act':''),'aria-pressed':on?'true':'false',onclick:function(){toggleAct(c.id,now);}},
+        h('span',{class:'ck',style:on?'background:'+c.color+';border-color:'+c.color:'border-color:'+c.color},on?'✓':''),c.name);
+    })));
+  }
+
+  v.append(h('h2',{},'Dagbok'));
+  v.append(noteCard(k));
+}
+
+/* ---------- kalender ---------- */
+function viewKal(v){
+  var today=new Date(),y=calY,m=calM;
+  var first=new Date(y,m,1),last=new Date(y,m+1,0);
+  var isCur=y===today.getFullYear()&&m===today.getMonth();
+  v.append(h('header',{class:'hd'},h('p',{class:'date'},'Kalender'),h('h1',{},'Tillbaka i tiden')));
+  var next=h('button',{class:'x','aria-label':'Nästa månad',onclick:function(){if(!isCur){calM++;if(calM>11){calM=0;calY++;}render();}}},'›');
+  if(isCur)next.setAttribute('disabled','disabled');
+  v.append(h('div',{class:'daynav'},
+    h('button',{class:'x','aria-label':'Föregående månad',onclick:function(){calM--;if(calM<0){calM=11;calY--;}render();}},'‹'),
+    h('b',{},cap(first.toLocaleDateString('sv-SE',{month:'long',year:'numeric'}))),
+    next));
+
+  var grid=h('div',{class:'cal'});
+  ['må','ti','on','to','fr','lö','sö'].forEach(function(w){grid.append(h('span',{class:'wd'},w));});
+  var lead=(first.getDay()+6)%7,i;
+  for(i=0;i<lead;i++)grid.append(h('span',{}));
+  var moodDays=0,moodSum=0,noteDays=0;
+  for(i=1;i<=last.getDate();i++){
+    (function(d){
+      var k=dk(d),off=offsetOf(d),fut=off>0,md=moodOf(d);
+      var nh=(S.done[k]||[]).filter(function(id){return S.habits.some(function(x){return x.id===id;});}).length;
+      var note=S.notes&&S.notes[k];
+      if(md){moodDays++;moodSum+=md;}
+      if(note)noteDays++;
+      var label=fmtDate(d)+(md?', humör '+MOODS[md-1]:'')+(energyOf(d)?', energi '+ENERGY[energyOf(d)-1]:'')+(sleepOf(d)?(sleepOf(d)===2?', sov gott':', sov dåligt'):'')+(nh?', '+nh+' vanor':'')+(actsOn(d).length?', '+actsOn(d).map(function(id){return cat(id).name;}).join(', '):'')+(note?', anteckning':'');
+      var b=h('button',{class:'cd'+(md?' m':'')+(off===0?' today':''),'aria-label':label,
+        style:md?'background:'+MCOL[md-1]:'',
+        onclick:function(){if(fut)return;selDay=off;tab='idag';render();window.scrollTo(0,0);try{location.hash='idag';}catch(e){}}},
+        h('span',{class:'n'},String(d.getDate())),
+        h('span',{class:'mk'},nh?h('span',{},'✓'+nh):null,note?h('i',{class:'nd'}):null),
+        h('span',{class:'ad'},actsOn(d).map(function(id){return h('i',{style:'background:'+cat(id).color});})));
+      if(fut)b.setAttribute('disabled','disabled');
+      grid.append(b);
+    })(new Date(y,m,i));
+  }
+  v.append(grid);
+  v.append(h('div',{class:'legend'},MOODS.map(function(n,j){
+    return h('span',{},h('i',{class:'dot',style:'background:'+MCOL[j]}),n);
+  }).concat([h('span',{},'✓ = vanor gjorda'),h('span',{},'små prickar = vad du gjort'),h('span',{},h('i',{class:'dot nd2'}),'anteckning')])));
+  v.append(h('p',{class:'muted',style:'margin-top:16px'},
+    moodDays?('Humör ifyllt '+moodDays+' dagar, snitt '+f1(moodSum/moodDays)+' av 4. '):'Inget humör ifyllt den här månaden. ',
+    noteDays?(noteDays+(noteDays===1?' dag':' dagar')+' med anteckning.'):''));
+  v.append(h('p',{class:'muted',style:'margin-top:8px;font-size:14px'},'Tryck på en dag för att se den och fylla i humör, vanor och dagbok i efterhand.'));
+}
+
+/* ---------- dagbok ---------- */
+function noteCard(k){
+  if(!S.notes)S.notes={};
+  var cur=S.notes[k]||{};
+  var tx=h('textarea',{id:'note-text',class:'note',placeholder:'Hur var dagen? Vad hände?','aria-label':'Anteckning om dagen',maxlength:'2000'});
+  tx.value=cur.text||'';
+  var gr=h('input',{id:'note-grat',type:'text',class:'note',placeholder:'Idag är jag tacksam över …','aria-label':'Något du är tacksam över',maxlength:'200'});
+  gr.value=cur.grat||'';
+  var st=h('p',{class:'saved','aria-live':'polite'});
+  var t=null;
+  function upd(){
+    var a=tx.value,b=gr.value.trim();
+    if(a.trim()||b)S.notes[k]={text:a,grat:b};else delete S.notes[k];
+    save();
+    st.textContent='Sparat';
+    clearTimeout(t);t=setTimeout(function(){st.textContent='';},1500);
+  }
+  tx.addEventListener('input',upd);
+  gr.addEventListener('input',upd);
+  return h('div',{class:'card stack'},
+    fld('Om dagen',tx),
+    fld('Tacksam över',gr),
+    st);
+}
+
+function fld(label,input){return h('label',{class:'fld'},h('span',{},label),input);}
+
+function patterns(v,vals,days,word,Label){
+  var idx=[];
+  vals.forEach(function(m,i){if(m)idx.push(i);});
+  if(idx.length<7){
+    v.append(h('div',{class:'empty'},'Fyll i '+word+' minst 7 dagar så visas mönster här. Du har fyllt i '+idx.length+' hittills.'));
+    return;
+  }
+  var avgOf=function(a){return a.reduce(function(x,y){return x+y;},0)/a.length;};
+  var compare=function(flag){
+    var a=[],b=[];
+    idx.forEach(function(i){(flag(i)?a:b).push(vals[i]);});
+    if(a.length<3||b.length<3)return null;
+    var ma=avgOf(a),mb=avgOf(b);
+    return {ma:ma,mb:mb,diff:ma-mb,na:a.length,nb:b.length};
+  };
+  var ins=[];
+  var sr=compare(function(i){return sleepOf(days[i])===2;});
+  var sb=compare(function(i){return sleepOf(days[i])===1;});
+  if(sr&&Math.abs(sr.diff)>=0.3)ins.push({diff:sr.diff,text:'Dagar efter att du sovit gott',r:sr,other:'övriga dagar'});
+  else if(sb&&Math.abs(sb.diff)>=0.3)ins.push({diff:sb.diff,text:'Dagar efter att du sovit dåligt',r:sb,other:'övriga dagar'});
+  S.cats.forEach(function(c){
+    var r=compare(function(i){return actsOn(days[i]).indexOf(c.id)>=0;});
+    if(r&&Math.abs(r.diff)>=0.3)ins.push({diff:r.diff,text:'Dagar med “'+c.name+'”',r:r,other:'övriga dagar'});
+  });
+  S.habits.forEach(function(hb){
+    var r=compare(function(i){return (S.done[dk(days[i])]||[]).indexOf(hb.id)>=0;});
+    if(r&&Math.abs(r.diff)>=0.3)ins.push({diff:r.diff,text:'Dagar du gjort “'+hb.name+'”',r:r,other:'dagar du inte gjort den'});
+  });
+  ins.sort(function(x,y){return Math.abs(y.diff)-Math.abs(x.diff);});
+  if(!ins.length){
+    v.append(h('div',{class:'empty'},'Inga tydliga skillnader än. Fortsätt fylla i så visas mönster när de finns.'));
+    return;
+  }
+  ins.slice(0,6).forEach(function(x){
+    v.append(h('div',{class:'card',style:'margin-bottom:10px'},
+      h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('b',{},x.text),h('b',{style:'flex:none'},(x.diff>0?'+':'−')+f1(Math.abs(x.diff)))),
+      h('p',{class:'muted',style:'font-size:14px;margin-top:4px'},Label+' '+f1(x.r.ma)+' ('+x.r.na+' dagar) mot '+f1(x.r.mb)+' på '+x.other+' ('+x.r.nb+' dagar).')));
+  });
+}
+
+function viewOver(v){
+  v.append(h('header',{class:'hd'},h('h1',{},'Översikt')));
+  v.append(h('div',{class:'seg2'},[7,30,90].map(function(n){
+    return h('button',{class:range===n?'on':'','aria-pressed':range===n?'true':'false',onclick:function(){range=n;render();}},n+' dagar');
+  })));
+
+  var days=[],i;
+  for(i=range-1;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d);}
+
+  v.append(h('h2',{},'Humör'));
+  var mvals=days.map(moodOf);
+  var logged=mvals.filter(function(x){return x>0;});
+  if(!logged.length){
+    v.append(h('div',{class:'empty'},'Fyll i hur du mår under Idag, så visas ditt humör här.'));
+  }else{
+    var avg=logged.reduce(function(a,b){return a+b;},0)/logged.length;
+    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(avg)+' av 4, baserat på '+logged.length+' ifyllda dagar.'));
+    v.append(h('div',{class:'cols',role:'img','aria-label':'Humör per dag'},mvals.map(function(m){
+      var col=h('div',{class:'col'});
+      col.append(h('div',{style:'height:'+(m?m/4*100:4)+'%;border-radius:5px;background:'+(m?MCOL[m-1]:'var(--line)')}));
+      return col;
+    })));
+    v.append(dayLabels(days));
+  }
+
+  v.append(h('h2',{},'Energi'));
+  var evals=days.map(energyOf);
+  var elog=evals.filter(function(x){return x>0;});
+  if(!elog.length){
+    v.append(h('div',{class:'empty'},'Fyll i din energi under Idag, så visas den här.'));
+  }else{
+    var eavg=elog.reduce(function(a,b){return a+b;},0)/elog.length;
+    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(eavg)+' av 4, baserat på '+elog.length+' ifyllda dagar.'));
+    v.append(h('div',{class:'cols',role:'img','aria-label':'Energi per dag'},evals.map(function(m){
+      var col=h('div',{class:'col'});
+      col.append(h('div',{style:'height:'+(m?m/4*100:4)+'%;border-radius:5px;background:'+(m?MCOL[m-1]:'var(--line)')}));
+      return col;
+    })));
+    v.append(dayLabels(days));
+  }
+
+  v.append(h('h2',{},'Sömn'));
+  var good=days.filter(function(d){return sleepOf(d)===2;}).length,bad=days.filter(function(d){return sleepOf(d)===1;}).length;
+  if(!good&&!bad){
+    v.append(h('div',{class:'empty'},'Fyll i hur du sov under Idag, så visas det här.'));
+  }else{
+    v.append(h('p',{},'Sov gott '+good+(good===1?' natt':' nätter')+', sov dåligt '+bad+(bad===1?' natt':' nätter')+'.'));
+    v.append(h('div',{class:'cols',style:'height:34px;margin-top:10px',role:'img','aria-label':'Sömn per natt'},days.map(function(d){
+      var q=sleepOf(d);
+      return h('div',{class:'col',style:'border-radius:5px;background:'+(q===2?MCOL[3]:q===1?MCOL[0]:'var(--line)')});
+    })));
+    v.append(dayLabels(days));
+  }
+
+  v.append(h('h2',{},'Samband med ditt humör'));
+  patterns(v,mvals,days,'humöret','Humör');
+  v.append(h('h2',{},'Samband med din energi'));
+  patterns(v,evals,days,'energin','Energi');
+  v.append(h('p',{class:'muted',style:'font-size:14px'},'Det här är samband, inte orsaker. Ju fler dagar du fyller i, desto säkrare blir mönstren.'));
+
+  v.append(h('h2',{},'Vad du har gjort'));
+  if(!S.cats.length){
+    v.append(h('div',{class:'empty'},'Inget att visa.'));
+  }else{
+    var last7a=days.slice(-7),laba=['sö','må','ti','on','to','fr','lö'];
+    S.cats.forEach(function(c){
+      var cnt=days.filter(function(d3){return actsOn(d3).indexOf(c.id)>=0;}).length;
+      v.append(h('div',{class:'card',style:'margin-bottom:10px'},
+        h('div',{class:'row',style:'justify-content:space-between'},h('span',{class:'row',style:'gap:8px'},h('i',{class:'dot',style:'background:'+c.color}),h('b',{},c.name)),h('span',{class:'muted'},cnt+' av '+range+' dagar')),
+        h('div',{class:'week'},last7a.map(function(d5){return h('b',{style:actsOn(d5).indexOf(c.id)>=0?'background:'+c.color:''});})),
+        h('div',{class:'wlabels'},last7a.map(function(d6){return h('span',{},laba[d6.getDay()]);}))));
+    });
+  }
+
+  v.append(h('h2',{},'Vanor'));
+  if(!S.habits.length){v.append(h('div',{class:'empty'},'Inga vanor att visa.'));return;}
+  var last7=days.slice(-7),lab=['sö','må','ti','on','to','fr','lö'];
+  S.habits.forEach(function(hb){
+    var cnt=days.filter(function(d4){return (S.done[dk(d4)]||[]).indexOf(hb.id)>=0;}).length;
+    var p=perOf(hb),extra=null;
+    if(p!=='day'){extra=h('p',{class:'muted',style:'margin-top:8px'},
+      (p==='week'?'Den här veckan: ':'Den här månaden: ')+progressOf(hb)+' av '+nOf(hb));}
+    v.append(h('div',{class:'card',style:'margin-bottom:10px'},
+      h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('b',{},hb.name),h('span',{class:'muted',style:'flex:none;white-space:nowrap'},cnt+' av '+range+' dagar')),
+      h('p',{class:'muted',style:'font-size:14px'},freqLabel(hb)),
+      h('div',{class:'week'},last7.map(function(d5){return h('b',{class:(S.done[dk(d5)]||[]).indexOf(hb.id)>=0?'on':''});})),
+      h('div',{class:'wlabels'},last7.map(function(d6){return h('span',{},lab[d6.getDay()]);})),
+      extra));
+  });
+}
+
+function viewAnpassa(v){
+  v.append(h('header',{class:'hd'},h('h1',{},'Anpassa')));
+
+  v.append(h('h2',{style:'margin-top:8px'},'Mina vanor'));
+  if(!S.habits.length)v.append(h('div',{class:'empty'},'Inga vanor ännu. Lägg till en nedan.'));
+  v.append(h('ul',{class:'list'},S.habits.map(function(hb){
+    return h('li',{},
+      h('div',{class:'grow'},h('div',{},hb.name),h('div',{class:'sub'},freqLabel(hb))),
+      h('button',{class:'btn small',onclick:function(){editId=hb.id;render();window.scrollTo(0,document.body.scrollHeight*0.2);}},'Ändra'),
+      h('button',{class:'x','aria-label':'Ta bort '+hb.name,onclick:function(){
+        S.habits=S.habits.filter(function(x){return x.id!==hb.id;});
+        if(editId===hb.id)editId=null;
+        save();render();
+      }},'×'));
+  })));
+
+  var editing=null;
+  S.habits.forEach(function(x){if(x.id===editId)editing=x;});
+  var hi=h('input',{type:'text',placeholder:'Till exempel Läsa 10 minuter','aria-label':'Namn på vana',maxlength:'60',value:editing?editing.name:''});
+  var per=h('select',{'aria-label':'Hur ofta'},
+    [['day','Varje dag'],['week','Varje vecka'],['month','Varje månad']].map(function(o){return h('option',{value:o[0]},o[1]);}));
+  per.value=editing?perOf(editing):'day';
+  var nIn=h('input',{type:'number',inputmode:'numeric',min:'1',max:'7',value:String(editing?nOf(editing):1),'aria-label':'Antal gånger'});
+  var unit=h('span',{class:'muted'},'');
+  var nWrap=h('div',{class:'row'},nIn,unit);
+  function sync(){
+    nWrap.style.display=per.value==='day'?'none':'';
+    unit.textContent=per.value==='week'?'gånger per vecka':'gånger per månad';
+    nIn.max=per.value==='week'?'7':'31';
+  }
+  per.addEventListener('change',sync);sync();
+  var emsg=h('p',{class:'muted',style:'min-height:20px'});
+  v.append(h('h3',{style:'margin-top:18px;margin-bottom:10px'},editing?'Ändra vana':'Ny vana'));
+  v.append(h('div',{class:'card stack'},
+    fld('Namn',hi),
+    fld('Hur ofta?',per),
+    nWrap,
+    h('div',{class:'row'},
+      h('button',{class:'btn primary',style:'flex:1',onclick:function(){
+        var t=hi.value.trim();
+        if(!t){emsg.textContent='Skriv ett namn på vanan.';return;}
+        var maxN=per.value==='week'?7:31;
+        var n=per.value==='day'?1:Math.max(1,Math.min(maxN,Math.round(Number(nIn.value)||1)));
+        if(editing){editing.name=t;editing.per=per.value;editing.n=n;}
+        else S.habits.push({id:uid(),name:t,per:per.value,n:n});
+        editId=null;save();render();
+      }},editing?'Spara ändringar':'Lägg till vana'),
+      editing?h('button',{class:'btn',onclick:function(){editId=null;render();}},'Avbryt'):null),
+    emsg));
+
+  v.append(h('h2',{},'Saker att bocka i'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:4px'},'Det här visas under “Vad har du gjort idag?” på Idag.'));
+  v.append(h('ul',{class:'list'},S.cats.map(function(c){
+    var cp=h('input',{type:'color',value:c.color,'aria-label':'Färg för '+c.name});
+    cp.addEventListener('change',function(){c.color=cp.value;save();});
+    var ni=h('input',{type:'text',value:c.name,'aria-label':'Namn på område',maxlength:'40'});
+    ni.addEventListener('change',function(){var t=ni.value.trim();if(t){c.name=t;save();}else{ni.value=c.name;}});
+    return h('li',{},cp,h('div',{class:'grow'},ni),
+      h('button',{class:'x','aria-label':'Ta bort '+c.name,onclick:function(){
+        S.cats=S.cats.filter(function(x){return x.id!==c.id;});
+        save();render();
+      }},'×'));
+  })));
+  var ci=h('input',{type:'text',placeholder:'Till exempel Studier','aria-label':'Ny sak att bocka i',maxlength:'40'});
+  var palette=['#4C6EF5','#15AABF','#82C91E','#FD7E14','#E64980','#F59F00','#7950F2','#12B886'];
+  v.append(h('div',{class:'row',style:'margin-top:12px'},ci,
+    h('button',{class:'btn primary',onclick:function(){
+      var t=ci.value.trim();if(!t)return;
+      S.cats.push({id:uid(),name:t,color:palette[S.cats.length%palette.length]});save();render();
+    }},'Lägg till')));
+
+  v.append(h('h2',{},'Utseende'));
+  v.append(h('div',{class:'seg2'},[['auto','Följ telefonen'],['light','Ljust'],['dark','Mörkt']].map(function(o){
+    var on=(S.theme||'auto')===o[0];
+    return h('button',{class:on?'on':'','aria-pressed':on?'true':'false',onclick:function(){S.theme=o[0];save();render();}},o[1]);
+  })));
+
+  v.append(h('h2',{},'Säkerhetskopia'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Datan sparas i den här webbläsaren på den här enheten. Kopiera texten nedan och spara den någonstans som backup, till exempel i en anteckning.'));
+  var out=h('textarea',{readonly:'readonly','aria-label':'Säkerhetskopia'});
+  out.value=JSON.stringify(S);
+  var cmsg=h('span',{class:'muted'});
+  v.append(out);
+  v.append(h('div',{class:'row',style:'margin-top:10px'},
+    h('button',{class:'btn small',onclick:function(){
+      out.select();
+      var done=function(){cmsg.textContent='Kopierat';};
+      try{
+        if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(out.value).then(done,function(){document.execCommand('copy');done();});}
+        else{document.execCommand('copy');done();}
+      }catch(e){cmsg.textContent='Markera texten och kopiera själv.';}
+    }},'Kopiera'),cmsg));
+  var inp=h('textarea',{placeholder:'Klistra in en tidigare säkerhetskopia här','aria-label':'Återställ från säkerhetskopia',style:'margin-top:14px'});
+  var imsg=h('p',{class:'muted',style:'margin-top:8px;min-height:20px'});
+  v.append(inp);
+  v.append(h('button',{class:'btn small',style:'margin-top:10px',onclick:function(){
+    try{
+      var d=JSON.parse(inp.value);
+      if(!d||!Array.isArray(d.habits)||!Array.isArray(d.cats))throw new Error('x');
+      S=migrate(d);save();render();
+    }catch(e){imsg.textContent='Texten går inte att läsa. Kontrollera att du kopierade allt.';}
+  }},'Återställ'));
+  v.append(imsg);
+
+  v.append(h('h2',{},'Sparade versioner av din data'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Appen sparar automatiskt en version första gången du öppnar den varje dag. Du kan också spara en själv och gå tillbaka till en tidigare version. De 20 senaste behålls.'));
+  var snapMsg=h('p',{class:'muted',style:'min-height:20px;margin-top:8px'});
+  v.append(h('button',{class:'btn small',onclick:function(){
+    if(addSnap('Manuell')){render();}else{snapMsg.textContent='Det gick inte att spara en version.';}
+  }},'Spara en version nu'));
+  var snaps=loadSnaps().slice().reverse();
+  if(!snaps.length){
+    v.append(h('div',{class:'empty',style:'margin-top:12px'},'Inga sparade versioner än.'));
+  }else{
+    v.append(h('ul',{class:'list',style:'margin-top:8px'},snaps.map(function(sn){
+      var info='';
+      try{var dd=JSON.parse(sn.data);info=Object.keys(dd.done||{}).length+' dagar med vanor, '+Object.keys(dd.mood||{}).length+' med humör';}catch(e){}
+      var armed=confirmSnap===sn.id;
+      return h('li',{},
+        h('div',{class:'grow'},
+          h('div',{},new Date(sn.t).toLocaleDateString('sv-SE',{day:'numeric',month:'short'})+' kl '+hhmm(sn.t)),
+          h('div',{class:'sub'},sn.label+(info?', '+info:''))),
+        h('button',{class:'btn small'+(armed?' warn':''),onclick:function(){
+          if(!armed){confirmSnap=sn.id;render();return;}
+          confirmSnap=null;restoreSnap(sn.id);
+        }},armed?'Tryck igen':'Återställ'));
+    })));
+  }
+  v.append(snapMsg);
+
+  v.append(h('h2',{},'Om appen'));
+  v.append(h('p',{},'Version '+VERSION));
+  v.append(h('ul',{class:'list'},CHANGELOG.map(function(c){
+    return h('li',{style:'align-items:flex-start'},h('b',{style:'flex:none;min-width:48px'},c[0]),h('span',{class:'muted'},c[1]));
+  })));
+
+  v.append(h('h2',{},'Börja om'));
+  v.append(h('button',{class:'btn warn',onclick:function(){
+    if(!confirmReset){confirmReset=true;render();return;}
+    S=defaults();confirmReset=false;editId=null;save();render();
+  }},confirmReset?'Tryck igen för att radera allt':'Radera all data'));
+}
+
+var VIEWS={idag:viewIdag,kalender:viewKal,over:viewOver,anpassa:viewAnpassa};
+
+function render(){
+  applyTheme();
+  var v=document.getElementById('view');
+  v.innerHTML='';
+  VIEWS[tab](v);
+  var t=document.getElementById('tabs');
+  t.innerHTML='';
+  TABS.forEach(function(x){
+    t.append(h('button',{class:tab===x[0]?'on':'','aria-current':tab===x[0]?'page':'false',onclick:function(){
+      if(x[0]==='idag'&&selDay!==0&&tab==='idag'){selDay=0;render();window.scrollTo(0,0);return;}
+      if(tab!==x[0]){if(x[0]==='idag')selDay=0;if(x[0]==='kalender'){var sd=selDate();calY=sd.getFullYear();calM=sd.getMonth();}tab=x[0];confirmReset=false;render();window.scrollTo(0,0);try{location.hash=x[0];}catch(e){}}
+    }},h('i'),x[1]));
+  });
+}
+
+function fromHash(){
+  var hs=(location.hash||'').replace('#','');
+  if(VIEWS[hs])tab=hs;
+}
+fromHash();
+window.addEventListener('hashchange',function(){fromHash();render();});
+
+render();
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
+</body>
+</html>
