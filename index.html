@@ -53,6 +53,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .date{color:var(--muted);font-size:15px;margin-bottom:4px}
 .hd{margin-bottom:18px;padding:18px 18px 16px;border-radius:22px;background:linear-gradient(135deg,var(--hero-a),var(--hero-b))}
 .hd .date{color:var(--ink);opacity:.75}
+.hd{position:relative}
+.hd h1,.hd .date{padding-right:48px}
+.refresh{position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.55);background:color-mix(in srgb,var(--surface) 60%,transparent);color:var(--ink);display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.refresh:active{transform:scale(.94)}
+.refresh:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.refresh svg{width:20px;height:20px}
+.refresh.spin svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.refresh.spin svg{animation:none}}
 .muted{color:var(--muted)}
 
 .prog{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:15px;color:var(--muted)}
@@ -171,8 +180,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.11.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.12.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.12.0','Ny uppdatera-knapp högst upp på Idag. Tryck för att hämta den senaste versionen av appen.'],
   ['1.11.0','Appen hälsar på dig med ditt namn. Du kan ändra namnet under Anpassa.'],
   ['1.10.0','Energi och sömn varje dag samt förslag på saker som får dig att må bra.'],
   ['1.9.0','Bocka i vad du gjort under dagen, som Socialt eller Charlie, istället för att ta tid. Tid-fliken är borttagen.'],
@@ -516,9 +526,22 @@ function dayNav(){
 }
 function offsetOf(d){return Math.round((dayStart(d)-dayStart(new Date()))/86400000);}
 
+function refreshBtn(){
+  var b=h('button',{class:'refresh',type:'button','aria-label':'Uppdatera appen',title:'Uppdatera',onclick:function(){
+    if(b.classList.contains('spin'))return;
+    b.classList.add('spin');b.setAttribute('aria-busy','true');
+    var go=function(){location.reload();};
+    var t=setTimeout(go,4000);
+    var p=('serviceWorker' in navigator)?navigator.serviceWorker.getRegistration().then(function(r){return r&&r.update();}):Promise.resolve();
+    Promise.resolve(p).catch(function(){}).then(function(){clearTimeout(t);setTimeout(go,300);});
+  }});
+  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>';
+  return b;
+}
+
 function viewIdag(v){
   var now=selDate(),isToday=selDay===0,k=dk(now),done=S.done[k]||[];
-  v.append(h('header',{class:'hd'},h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting()+(S.name?', '+S.name:''):selDay===-1?'Igår':'Tillbaka i tiden')));
+  v.append(h('header',{class:'hd'},refreshBtn(),h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting()+(S.name?', '+S.name:''):selDay===-1?'Igår':'Tillbaka i tiden')));
   v.append(dayNav());
   if(!isToday){
     v.append(h('div',{class:'row',style:'justify-content:space-between;margin:4px 0 6px'},
