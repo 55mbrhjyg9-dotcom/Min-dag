@@ -171,8 +171,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.10.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.11.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.11.0','Appen hälsar på dig med ditt namn. Du kan ändra namnet under Anpassa.'],
   ['1.10.0','Energi och sömn varje dag samt förslag på saker som får dig att må bra.'],
   ['1.9.0','Bocka i vad du gjort under dagen, som Socialt eller Charlie, istället för att ta tid. Tid-fliken är borttagen.'],
   ['1.8.1','Idag visar bara humöret för dagen. Tidigare dagar fyller du i via kalendern.'],
@@ -191,7 +192,7 @@ var calY=new Date().getFullYear(), calM=new Date().getMonth();
 
 function defaults(){
   return {
-    v:4,
+    v:4, name:'Johanna',
     habits:[
       {id:'h1',name:'Dricka vatten',per:'day',n:1},
       {id:'h2',name:'Röra på mig',per:'day',n:1},
@@ -517,7 +518,7 @@ function offsetOf(d){return Math.round((dayStart(d)-dayStart(new Date()))/864000
 
 function viewIdag(v){
   var now=selDate(),isToday=selDay===0,k=dk(now),done=S.done[k]||[];
-  v.append(h('header',{class:'hd'},h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting():selDay===-1?'Igår':'Tillbaka i tiden')));
+  v.append(h('header',{class:'hd'},h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting()+(S.name?', '+S.name:''):selDay===-1?'Igår':'Tillbaka i tiden')));
   v.append(dayNav());
   if(!isToday){
     v.append(h('div',{class:'row',style:'justify-content:space-between;margin:4px 0 6px'},
@@ -853,6 +854,12 @@ function viewAnpassa(v){
       var t=ci.value.trim();if(!t)return;
       S.cats.push({id:uid(),name:t,color:palette[S.cats.length%palette.length]});save();render();
     }},'Lägg till')));
+
+  v.append(h('h2',{},'Ditt namn'));
+  var nm=h('input',{id:'name',type:'text',value:S.name||'',placeholder:'Ditt namn','aria-label':'Ditt namn',maxlength:'30'});
+  nm.addEventListener('change',function(){S.name=nm.value.trim();save();});
+  v.append(nm);
+  v.append(h('p',{class:'muted',style:'font-size:14px;margin-top:6px'},'Visas i hälsningen högst upp på Idag.'));
 
   v.append(h('h2',{},'Utseende'));
   v.append(h('div',{class:'seg2'},[['auto','Följ telefonen'],['light','Ljust'],['dark','Mörkt']].map(function(o){
