@@ -170,6 +170,18 @@ nav button.on{color:var(--ink)}
 nav button.on i{background:var(--sun);width:30px}
 nav button.on{color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+.goal{margin-bottom:14px;display:grid;gap:10px}
+.goal-h{display:flex;align-items:flex-start;gap:10px}
+.goal-h h3{flex:1;min-width:0;font-size:20px;font-weight:600;overflow-wrap:anywhere}
+.goal.complete{background:var(--sun-soft);border-color:var(--sun-line)}
+.sg{display:flex;align-items:center;gap:12px;width:100%;min-height:48px;padding:8px 4px;border:none;border-bottom:1px solid var(--line);background:none;text-align:left}
+.sg:last-child{border-bottom:none}
+.sg .chk{flex:none;width:26px;height:26px;border-radius:8px;border:2px solid var(--edge,var(--line));display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--accent-ink)}
+.sg.on .chk{background:var(--accent);border-color:var(--accent)}
+.sg .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.sg.on .t{color:var(--muted);text-decoration:line-through}
+.edrow{display:flex;gap:8px;align-items:center}
+.edrow .btn,.goal-h .btn{flex:none;white-space:nowrap}
 </style>
 </head>
 <body>
@@ -180,8 +192,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.15.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.16.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.16.0','Ny flik Mål: skriv dina mål och bocka av delmål.'],
   ['1.15.0','All historik sparas. Tar du bort en vana eller sak att bocka i finns det du gjort kvar i Översikt och Kalender. Appen ber också telefonen att inte rensa datan.'],
   ['1.14.0','Alla vanor fylls i varje dag. Du behöver inte längre välja hur ofta.'],
   ['1.13.1','Steg och aktiva minuter är borttagna igen.'],
@@ -200,7 +213,7 @@ var CHANGELOG=[
   ['1.2.0','Egna vanor med frekvens, tidsområden som Socialt, Charlie, Sömn och Träning samt dagsfördelning.'],
   ['1.0.0','Första versionen med vanor, tidsloggning och översikt.']
 ];
-var TABS=[['idag','Idag'],['kalender','Kalender'],['over','Översikt'],['anpassa','Anpassa']];
+var TABS=[['idag','Idag'],['mal','Mål'],['kalender','Kalender'],['over','Översikt'],['anpassa','Anpassa']];
 var tab='idag', range=7, confirmReset=false, tickTimer=null, selDay=0, editId=null, confirmSnap=null;
 var calY=new Date().getFullYear(), calM=new Date().getMonth();
 
@@ -219,7 +232,7 @@ function defaults(){
       {id:'c9',name:'Sömn',color:'#7950F2'},
       {id:'c3',name:'Träning',color:'#12B886'}
     ],
-    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, entries:[], running:null
+    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, goals:[], entries:[], running:null
   };
 }
 function migrate(d){
@@ -266,7 +279,7 @@ function addSnap(label){
   return saveSnaps(a);
 }
 function autoSnap(){
-  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length;
+  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length||(S.goals||[]).length;
   if(!has)return;
   var a=loadSnaps(),today=dk(new Date());
   var last=a.filter(function(x){return x.label==='Automatisk';}).pop();
@@ -952,13 +965,77 @@ function viewAnpassa(v){
   }},confirmReset?'Tryck igen för att radera allt':'Radera all data'));
 }
 
-var VIEWS={idag:viewIdag,kalender:viewKal,over:viewOver,anpassa:viewAnpassa};
+/* ---------- mål ---------- */
+var editGoal=null, confirmGoal=null, focusId=null;
+function goalSubs(g){return act(g.subs);}
+function goalCard(g){
+  var subs=goalSubs(g),n=subs.length,d=subs.filter(function(x){return x.done;}).length;
+  var complete=n>0&&d===n;
+  if(editGoal===g.id){
+    var ti=h('input',{type:'text',class:'note',value:g.title,maxlength:'80','aria-label':'Namn på målet'});
+    ti.addEventListener('change',function(){var t=ti.value.trim();if(t){g.title=t;save();}else ti.value=g.title;});
+    var rows=subs.map(function(sg){
+      var si=h('input',{type:'text',class:'note',value:sg.text,maxlength:'120','aria-label':'Delmål'});
+      si.addEventListener('change',function(){var t=si.value.trim();if(t){sg.text=t;save();}else si.value=sg.text;});
+      return h('div',{class:'edrow'},si,h('button',{class:'x','aria-label':'Ta bort '+sg.text,onclick:function(){sg.archived=true;save();render();}},'×'));
+    });
+    var armed=confirmGoal===g.id;
+    return h('div',{class:'card goal'},
+      fld('Mål',ti),
+      rows.length?h('div',{class:'stack',style:'gap:8px'},h('span',{class:'muted',style:'font-size:13px'},'Delmål'),rows):null,
+      h('div',{class:'row',style:'flex-wrap:wrap;gap:8px'},
+        h('button',{class:'btn small primary',onclick:function(){editGoal=null;confirmGoal=null;render();}},'Klar'),
+        h('button',{class:'btn small warn',onclick:function(){
+          if(!armed){confirmGoal=g.id;render();return;}
+          g.archived=true;editGoal=null;confirmGoal=null;save();render();
+        }},armed?'Tryck igen för att ta bort':'Ta bort målet')));
+  }
+  var addIn=h('input',{type:'text',class:'note',id:'sg-'+g.id,placeholder:'Nytt delmål','aria-label':'Nytt delmål för '+g.title,maxlength:'120',enterkeyhint:'done'});
+  var add=function(){
+    var t=addIn.value.trim();if(!t)return;
+    if(!g.subs)g.subs=[];
+    g.subs.push({id:uid(),text:t,done:false});
+    focusId='sg-'+g.id;save();render();
+  };
+  addIn.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();add();}});
+  return h('div',{class:'card goal'+(complete?' complete':'')},
+    h('div',{class:'goal-h'},h('h3',{},g.title),
+      h('button',{class:'btn small',onclick:function(){editGoal=g.id;confirmGoal=null;render();}},'Ändra')),
+    n?h('div',{class:'prog',style:'margin:0'},
+      h('div',{class:'bar'},h('i',{style:'width:'+(d/n*100)+'%'})),
+      h('span',{},complete?'Klart!':d+' av '+n+' delmål')):null,
+    n?h('div',{},subs.map(function(sg){
+      return h('button',{class:'sg'+(sg.done?' on':''),'aria-pressed':sg.done?'true':'false',onclick:function(){
+        sg.done=!sg.done;if(sg.done)sg.doneAt=dk(new Date());else delete sg.doneAt;save();render();
+      }},h('span',{class:'chk'},sg.done?'✓':''),h('span',{class:'t'},sg.text));
+    })):null,
+    h('div',{class:'edrow'},addIn,h('button',{class:'btn small',onclick:add},'Lägg till')));
+}
+function viewMal(v){
+  if(!S.goals)S.goals=[];
+  v.append(h('header',{class:'hd'},h('p',{class:'date'},'Det jag vill'),h('h1',{},'Mål')));
+  var goals=act(S.goals);
+  if(!goals.length)v.append(h('div',{class:'empty',style:'margin-bottom:14px'},'Inga mål ännu. Skriv ditt första mål nedan.'));
+  goals.forEach(function(g){v.append(goalCard(g));});
+  var gi=h('input',{type:'text',class:'note',id:'new-goal',placeholder:'Till exempel Må bättre i vinter','aria-label':'Nytt mål',maxlength:'80',enterkeyhint:'done'});
+  var addG=function(){
+    var t=gi.value.trim();if(!t)return;
+    var g={id:uid(),title:t,subs:[],created:dk(new Date())};
+    S.goals.push(g);focusId='sg-'+g.id;save();render();
+  };
+  gi.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();addG();}});
+  v.append(h('h2',{},'Nytt mål'));
+  v.append(h('div',{class:'edrow'},gi,h('button',{class:'btn small primary',onclick:addG},'Lägg till')));
+}
+
+var VIEWS={idag:viewIdag,mal:viewMal,kalender:viewKal,over:viewOver,anpassa:viewAnpassa};
 
 function render(){
   applyTheme();
   var v=document.getElementById('view');
   v.innerHTML='';
   VIEWS[tab](v);
+  if(focusId){var fe=document.getElementById(focusId);focusId=null;if(fe)try{fe.focus();}catch(e){}}
   var t=document.getElementById('tabs');
   t.innerHTML='';
   TABS.forEach(function(x){
