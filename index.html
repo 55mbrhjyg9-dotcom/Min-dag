@@ -192,8 +192,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.16.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.16.1', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.16.1','Appen sparar en kopia av din data före varje uppdatering, som du hittar under Sparade versioner.'],
   ['1.16.0','Ny flik Mål: skriv dina mål och bocka av delmål.'],
   ['1.15.0','All historik sparas. Tar du bort en vana eller sak att bocka i finns det du gjort kvar i Översikt och Kalender. Appen ber också telefonen att inte rensa datan.'],
   ['1.14.0','Alla vanor fylls i varje dag. Du behöver inte längre välja hur ofta.'],
@@ -256,11 +257,25 @@ function migrate(d){
   return d;
 }
 function load(){
+  var r=null;
+  try{r=localStorage.getItem(KEY);}catch(e){}
+  if(!r)return defaults();
   try{
-    var r=localStorage.getItem(KEY);
-    if(r)return migrate(JSON.parse(r));
-  }catch(e){}
-  return defaults();
+    var raw=JSON.parse(r),before=raw.appv;
+    var d=migrate(raw);
+    if(before!==VERSION){
+      try{
+        var sn=JSON.parse(localStorage.getItem(SNAPKEY)||'[]');
+        sn.push({id:'u'+Date.now().toString(36),t:Date.now(),label:'Före uppdatering till '+VERSION,data:r});
+        localStorage.setItem(SNAPKEY,JSON.stringify(sn.slice(-20)));
+      }catch(e){}
+      d.appv=VERSION;
+    }
+    return d;
+  }catch(e){
+    try{localStorage.setItem(KEY+'-raddad-'+Date.now(),r);}catch(e2){}
+    return defaults();
+  }
 }
 var S=load();
 function applyTheme(){
