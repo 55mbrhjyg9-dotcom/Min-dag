@@ -180,8 +180,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.12.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.13.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.13.0','Steg och aktiva minuter. Hämta dem från Hälsa med en genväg eller skriv in dem själv. Visas på Idag och i Översikten.'],
   ['1.12.0','Ny uppdatera-knapp högst upp på Idag. Tryck för att hämta den senaste versionen av appen.'],
   ['1.11.0','Appen hälsar på dig med ditt namn. Du kan ändra namnet under Anpassa.'],
   ['1.10.0','Energi och sömn varje dag samt förslag på saker som får dig att må bra.'],
@@ -215,7 +216,7 @@ function defaults(){
       {id:'c9',name:'Sömn',color:'#7950F2'},
       {id:'c3',name:'Träning',color:'#12B886'}
     ],
-    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, entries:[], running:null
+    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, move:{}, entries:[], running:null
   };
 }
 function migrate(d){
@@ -259,7 +260,7 @@ function addSnap(label){
   return saveSnaps(a);
 }
 function autoSnap(){
-  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length;
+  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length||Object.keys(S.move||{}).length;
   if(!has)return;
   var a=loadSnaps(),today=dk(new Date());
   var last=a.filter(function(x){return x.label==='Automatisk';}).pop();
@@ -479,6 +480,100 @@ function sleepRow(d){
   }));
 }
 
+/* ---------- rörelse ---------- */
+var moveMsg='', pasteOpen=false;
+function moveOf(d){return (S.move&&S.move[dk(d)])||null;}
+function stepsOf(d){var m=moveOf(d);return m&&m.steps?m.steps:0;}
+function minOf(d){var m=moveOf(d);return m&&m.min?m.min:0;}
+function fmtNum(n){return Math.round(n).toLocaleString('sv-SE');}
+function toNum(s){
+  s=String(s||'').replace(/[\s  ]/g,'');
+  s=s.replace(/[.,]\d{1,2}$/,'').replace(/[.,]/g,'');
+  var n=parseInt(s,10);
+  return isNaN(n)?0:n;
+}
+function setMove(k,field,val,max){
+  if(!S.move)S.move={};
+  val=Math.max(0,Math.min(max,val||0));
+  var m=Object.assign({},S.move[k]||{});
+  if(val>0)m[field]=val;else delete m[field];
+  if(m.steps||m.min)S.move[k]=m;else delete S.move[k];
+  save();
+}
+function parseMove(text){
+  var rows=[],today=dk(new Date());
+  String(text||'').split(/\r?\n/).forEach(function(line){
+    var dm=line.match(/(\d{4})-(\d{2})-(\d{2})/);
+    var rest=dm?line.replace(dm[0],' '):line;
+    var sm=rest.match(/\bsteg\b[^\d\n]{0,3}(\d[\d\s  .,]*)/i);
+    var mm=rest.match(/\bmin(?:uter)?\b[^\d\n]{0,3}(\d[\d\s  .,]*)/i);
+    var st=sm?Math.min(200000,toNum(sm[1])):0, mi=mm?Math.min(1440,toNum(mm[1])):0;
+    if(!st&&!mi)return;
+    var k=dm?dm[0]:today;
+    if(k>today)return;
+    rows.push({k:k,steps:st,min:mi});
+  });
+  return rows;
+}
+function importMove(text){
+  var rows=parseMove(text);
+  if(!S.move)S.move={};
+  rows.forEach(function(r){
+    var m=Object.assign({},S.move[r.k]||{});
+    if(r.steps)m.steps=r.steps;
+    if(r.min)m.min=r.min;
+    S.move[r.k]=m;
+  });
+  if(rows.length)save();
+  return rows;
+}
+function importDone(rows){
+  moveMsg=rows.length===1?'Hämtat från Hälsa':'Hämtat '+rows.length+' dagar från Hälsa';
+  pasteOpen=false;
+}
+function moveFromUrl(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(!q.has('steg')&&!q.has('min'))return;
+    var t=(q.get('dag')||'')+' steg '+(q.get('steg')||'')+' min '+(q.get('min')||'');
+    var rows=importMove(t);
+    if(rows.length){importDone(rows);selDay=0;tab='idag';}
+    history.replaceState(null,'',location.pathname+location.hash);
+  }catch(e){}
+}
+function moveCard(d){
+  var k=dk(d),m=moveOf(d)||{},isToday=offsetOf(d)===0;
+  var si=h('input',{type:'number',inputmode:'numeric',min:'0',max:'200000',placeholder:'0','aria-label':'Steg'});
+  si.value=m.steps?String(m.steps):'';
+  var mi=h('input',{type:'number',inputmode:'numeric',min:'0',max:'1440',placeholder:'0','aria-label':'Aktiva minuter'});
+  mi.value=m.min?String(m.min):'';
+  var msg=h('p',{class:'saved','aria-live':'polite'},moveMsg);
+  moveMsg='';
+  si.addEventListener('change',function(){setMove(k,'steps',toNum(si.value),200000);msg.textContent='Sparat';});
+  mi.addEventListener('change',function(){setMove(k,'min',toNum(mi.value),1440);msg.textContent='Sparat';});
+  var kids=[h('div',{class:'row'},fld('Steg',si),fld('Aktiva minuter',mi))];
+  if(isToday){
+    var tryText=function(t){
+      var rows=importMove(t);
+      if(rows.length){importDone(rows);render();}
+      else{msg.textContent='Hittade inga steg. Kör genvägen först.';}
+    };
+    kids.push(h('button',{class:'btn small primary',onclick:function(){
+      if(navigator.clipboard&&navigator.clipboard.readText){
+        navigator.clipboard.readText().then(tryText,function(){pasteOpen=true;render();});
+      }else{pasteOpen=true;render();}
+    }},'Hämta från genvägen'));
+    if(pasteOpen){
+      var box=h('textarea',{class:'note',style:'min-height:64px','aria-label':'Klistra in text från genvägen',placeholder:'Håll inne och välj Klistra in'});
+      kids.push(h('div',{class:'stack'},
+        h('p',{class:'muted',style:'font-size:14px'},'Klistra in texten från genvägen här.'),box,
+        h('button',{class:'btn small',onclick:function(){tryText(box.value);}},'Spara')));
+    }
+  }
+  kids.push(msg);
+  return h('div',{class:'card stack'},kids);
+}
+
 /* ---------- förslag ---------- */
 var IDEAS_LOW=['Läs några sidor i en bok','Ta en varm dusch eller ett bad','Lyssna på musik eller en podd du gillar','Drick en kopp te och sitt still en stund','Gör lugn yoga eller stretching','Vila en stund utan mobilen','Skriv ner tre saker som gått bra idag','Andas lugnt i några minuter','Tänd ett ljus och gör det mysigt','Gå och lägg dig lite tidigare ikväll','Gå ut och få lite frisk luft en stund','Se en favoritfilm under en filt'];
 var IDEAS_HIGH=['Gör ett yogapass','Ta en promenad i naturen','Dansa till en favoritlåt','Ring eller träffa en vän','Laga något gott från grunden','Städa ett litet hörn hemma','Prova något nytt, som att teckna eller lägga pussel','Gå till biblioteket och låna en bok','Ta en promenad och lyssna på en podd','Planera något roligt att se fram emot','Gör något kreativt, som att måla eller skriva','Gör något fint för någon annan'];
@@ -599,6 +694,9 @@ function viewIdag(v){
     })));
   }
 
+  v.append(h('h2',{},isToday?'Hur mycket har du rört dig?':'Hur mycket rörde du dig?'));
+  v.append(moveCard(now));
+
   v.append(h('h2',{},'Dagbok'));
   v.append(noteCard(k));
 }
@@ -628,7 +726,7 @@ function viewKal(v){
       var note=S.notes&&S.notes[k];
       if(md){moodDays++;moodSum+=md;}
       if(note)noteDays++;
-      var label=fmtDate(d)+(md?', humör '+MOODS[md-1]:'')+(energyOf(d)?', energi '+ENERGY[energyOf(d)-1]:'')+(sleepOf(d)?(sleepOf(d)===2?', sov gott':', sov dåligt'):'')+(nh?', '+nh+' vanor':'')+(actsOn(d).length?', '+actsOn(d).map(function(id){return cat(id).name;}).join(', '):'')+(note?', anteckning':'');
+      var label=fmtDate(d)+(md?', humör '+MOODS[md-1]:'')+(energyOf(d)?', energi '+ENERGY[energyOf(d)-1]:'')+(sleepOf(d)?(sleepOf(d)===2?', sov gott':', sov dåligt'):'')+(stepsOf(d)?', '+fmtNum(stepsOf(d))+' steg':'')+(nh?', '+nh+' vanor':'')+(actsOn(d).length?', '+actsOn(d).map(function(id){return cat(id).name;}).join(', '):'')+(note?', anteckning':'');
       var b=h('button',{class:'cd'+(md?' m':'')+(off===0?' today':''),'aria-label':label,
         style:md?'background:'+MCOL[md-1]:'',
         onclick:function(){if(fut)return;selDay=off;tab='idag';render();window.scrollTo(0,0);try{location.hash='idag';}catch(e){}}},
@@ -686,7 +784,7 @@ function patterns(v,vals,days,word,Label){
   var avgOf=function(a){return a.reduce(function(x,y){return x+y;},0)/a.length;};
   var compare=function(flag){
     var a=[],b=[];
-    idx.forEach(function(i){(flag(i)?a:b).push(vals[i]);});
+    idx.forEach(function(i){var f=flag(i);if(f===null)return;(f?a:b).push(vals[i]);});
     if(a.length<3||b.length<3)return null;
     var ma=avgOf(a),mb=avgOf(b);
     return {ma:ma,mb:mb,diff:ma-mb,na:a.length,nb:b.length};
@@ -696,6 +794,12 @@ function patterns(v,vals,days,word,Label){
   var sb=compare(function(i){return sleepOf(days[i])===1;});
   if(sr&&Math.abs(sr.diff)>=0.3)ins.push({diff:sr.diff,text:'Dagar efter att du sovit gott',r:sr,other:'övriga dagar'});
   else if(sb&&Math.abs(sb.diff)>=0.3)ins.push({diff:sb.diff,text:'Dagar efter att du sovit dåligt',r:sb,other:'övriga dagar'});
+  var sv=days.map(stepsOf),sl=sv.filter(function(x){return x>0;});
+  if(sl.length>=6){
+    var sa=sl.reduce(function(x,y){return x+y;},0)/sl.length;
+    var rs=compare(function(i){return sv[i]?sv[i]>=sa:null;});
+    if(rs&&Math.abs(rs.diff)>=0.3)ins.push({diff:rs.diff,text:'Dagar med fler steg än ditt snitt ('+fmtNum(sa)+')',r:rs,other:'dagar med färre steg'});
+  }
   S.cats.forEach(function(c){
     var r=compare(function(i){return actsOn(days[i]).indexOf(c.id)>=0;});
     if(r&&Math.abs(r.diff)>=0.3)ins.push({diff:r.diff,text:'Dagar med “'+c.name+'”',r:r,other:'övriga dagar'});
@@ -766,6 +870,26 @@ function viewOver(v){
     v.append(h('div',{class:'cols',style:'height:34px;margin-top:10px',role:'img','aria-label':'Sömn per natt'},days.map(function(d){
       var q=sleepOf(d);
       return h('div',{class:'col',style:'border-radius:5px;background:'+(q===2?MCOL[3]:q===1?MCOL[0]:'var(--line)')});
+    })));
+    v.append(dayLabels(days));
+  }
+
+  v.append(h('h2',{},'Rörelse'));
+  var svals=days.map(stepsOf),slog=svals.filter(function(x){return x>0;});
+  var mlog=days.map(minOf).filter(function(x){return x>0;});
+  if(!slog.length&&!mlog.length){
+    v.append(h('div',{class:'empty'},'Hämta steg från Hälsa eller skriv in dem under Idag, så visas de här.'));
+  }else{
+    var sum=function(a){return a.reduce(function(x,y){return x+y;},0);};
+    var txt=[];
+    if(slog.length)txt.push('Snitt '+fmtNum(sum(slog)/slog.length)+' steg per dag');
+    if(mlog.length)txt.push((slog.length?'och ':'Snitt ')+fmtNum(sum(mlog)/mlog.length)+' aktiva minuter');
+    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},txt.join(' ')+', baserat på '+Math.max(slog.length,mlog.length)+' dagar.'));
+    var bv=slog.length?svals:days.map(minOf),mx=Math.max.apply(null,bv)||1;
+    v.append(h('div',{class:'cols',role:'img','aria-label':slog.length?'Steg per dag':'Aktiva minuter per dag'},bv.map(function(x){
+      var col=h('div',{class:'col'});
+      col.append(h('div',{style:'height:'+(x?Math.max(6,x/mx*100):4)+'%;border-radius:5px;background:'+(x?'var(--accent)':'var(--line)')}));
+      return col;
     })));
     v.append(dayLabels(days));
   }
@@ -878,6 +1002,20 @@ function viewAnpassa(v){
       S.cats.push({id:uid(),name:t,color:palette[S.cats.length%palette.length]});save();render();
     }},'Lägg till')));
 
+  v.append(h('h2',{},'Steg från Hälsa'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Gör en genväg en gång. Sedan kör du den och trycker ”Hämta från genvägen” på Idag.'));
+  var guide=[
+    'Öppna appen Genvägar, tryck på + och döp genvägen till ”Steg till Min dag”.',
+    'Lägg till ”Hitta hälsoexempel”. Välj Typ: Steg, Startdatum: Idag och Gruppera efter: Dag.',
+    'Lägg till ”Beräkna statistik” och välj Summa.',
+    'Lägg till ”Hitta hälsoexempel” igen med Typ: Träningsminuter, Startdatum: Idag och Gruppera efter: Dag. Lägg sedan till ”Beräkna statistik” med Summa.',
+    'Lägg till ”Text” och skriv: steg [Statistik] min [Statistik]. Välj den första Statistik efter ”steg” och den andra efter ”min”.',
+    'Lägg till ”Kopiera till urklipp” och spara genvägen.',
+    'Kör genvägen, öppna Min dag och tryck ”Hämta från genvägen” på Idag.'
+  ];
+  v.append(h('ol',{class:'card',style:'margin:0;padding:14px 16px 14px 36px;display:grid;gap:8px'},guide.map(function(g){return h('li',{},g);})));
+  v.append(h('p',{class:'muted',style:'font-size:14px;margin-top:8px'},'Tips: lägg genvägen som widget på hemskärmen så når du den med ett tryck. Du kan också skriva in steg själv på Idag.'));
+
   v.append(h('h2',{},'Ditt namn'));
   var nm=h('input',{id:'name',type:'text',value:S.name||'',placeholder:'Ditt namn','aria-label':'Ditt namn',maxlength:'30'});
   nm.addEventListener('change',function(){S.name=nm.value.trim();save();});
@@ -978,6 +1116,7 @@ function fromHash(){
   if(VIEWS[hs])tab=hs;
 }
 fromHash();
+moveFromUrl();
 window.addEventListener('hashchange',function(){fromHash();render();});
 
 render();
