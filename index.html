@@ -180,8 +180,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.13.1', SNAPKEY='min-dag-snapshots';
+var VERSION='1.14.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.14.0','Alla vanor fylls i varje dag. Du behöver inte längre välja hur ofta.'],
   ['1.13.1','Steg och aktiva minuter är borttagna igen.'],
   ['1.13.0','Steg och aktiva minuter från Hälsa.'],
   ['1.12.0','Ny uppdatera-knapp högst upp på Idag. Tryck för att hämta den senaste versionen av appen.'],
@@ -209,7 +210,7 @@ function defaults(){
       {id:'h1',name:'Dricka vatten',per:'day',n:1},
       {id:'h2',name:'Röra på mig',per:'day',n:1},
       {id:'h3',name:'Gå och lägga mig i tid',per:'day',n:1},
-      {id:'h4',name:'Tid för mig själv',per:'week',n:2}
+      {id:'h4',name:'Tid för mig själv',per:'day',n:1}
     ],
     cats:[
       {id:'c4',name:'Socialt',color:'#E64980'},
@@ -236,6 +237,7 @@ function migrate(d){
     d.running=null;
   }
   delete d.move;
+  (d.habits||[]).forEach(function(x){x.per='day';x.n=1;});
   d.v=4;
   return d;
 }
@@ -504,7 +506,7 @@ function ideaCard(){
       h('button',{class:'btn small',onclick:function(){ideaShift++;render();}},'Visa ett annat'),
       h('button',{class:'btn small primary',disabled:exists?'disabled':null,onclick:function(){
         if(exists)return;
-        S.habits.push({id:uid(),name:idea,per:'week',n:2});save();render();
+        S.habits.push({id:uid(),name:idea,per:'day',n:1});save();render();
       }},exists?'Finns bland dina vanor':'Lägg till som vana')));
 }
 
@@ -803,7 +805,6 @@ function viewOver(v){
       (p==='week'?'Den här veckan: ':'Den här månaden: ')+progressOf(hb)+' av '+nOf(hb));}
     v.append(h('div',{class:'card',style:'margin-bottom:10px'},
       h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('b',{},hb.name),h('span',{class:'muted',style:'flex:none;white-space:nowrap'},cnt+' av '+range+' dagar')),
-      h('p',{class:'muted',style:'font-size:14px'},freqLabel(hb)),
       h('div',{class:'week'},last7.map(function(d5){return h('b',{class:(S.done[dk(d5)]||[]).indexOf(hb.id)>=0?'on':''});})),
       h('div',{class:'wlabels'},last7.map(function(d6){return h('span',{},lab[d6.getDay()]);})),
       extra));
@@ -817,7 +818,7 @@ function viewAnpassa(v){
   if(!S.habits.length)v.append(h('div',{class:'empty'},'Inga vanor ännu. Lägg till en nedan.'));
   v.append(h('ul',{class:'list'},S.habits.map(function(hb){
     return h('li',{},
-      h('div',{class:'grow'},h('div',{},hb.name),h('div',{class:'sub'},freqLabel(hb))),
+      h('div',{class:'grow'},h('div',{},hb.name)),
       h('button',{class:'btn small',onclick:function(){editId=hb.id;render();window.scrollTo(0,document.body.scrollHeight*0.2);}},'Ändra'),
       h('button',{class:'x','aria-label':'Ta bort '+hb.name,onclick:function(){
         S.habits=S.habits.filter(function(x){return x.id!==hb.id;});
@@ -829,32 +830,16 @@ function viewAnpassa(v){
   var editing=null;
   S.habits.forEach(function(x){if(x.id===editId)editing=x;});
   var hi=h('input',{type:'text',placeholder:'Till exempel Läsa 10 minuter','aria-label':'Namn på vana',maxlength:'60',value:editing?editing.name:''});
-  var per=h('select',{'aria-label':'Hur ofta'},
-    [['day','Varje dag'],['week','Varje vecka'],['month','Varje månad']].map(function(o){return h('option',{value:o[0]},o[1]);}));
-  per.value=editing?perOf(editing):'day';
-  var nIn=h('input',{type:'number',inputmode:'numeric',min:'1',max:'7',value:String(editing?nOf(editing):1),'aria-label':'Antal gånger'});
-  var unit=h('span',{class:'muted'},'');
-  var nWrap=h('div',{class:'row'},nIn,unit);
-  function sync(){
-    nWrap.style.display=per.value==='day'?'none':'';
-    unit.textContent=per.value==='week'?'gånger per vecka':'gånger per månad';
-    nIn.max=per.value==='week'?'7':'31';
-  }
-  per.addEventListener('change',sync);sync();
   var emsg=h('p',{class:'muted',style:'min-height:20px'});
   v.append(h('h3',{style:'margin-top:18px;margin-bottom:10px'},editing?'Ändra vana':'Ny vana'));
   v.append(h('div',{class:'card stack'},
     fld('Namn',hi),
-    fld('Hur ofta?',per),
-    nWrap,
     h('div',{class:'row'},
       h('button',{class:'btn primary',style:'flex:1',onclick:function(){
         var t=hi.value.trim();
         if(!t){emsg.textContent='Skriv ett namn på vanan.';return;}
-        var maxN=per.value==='week'?7:31;
-        var n=per.value==='day'?1:Math.max(1,Math.min(maxN,Math.round(Number(nIn.value)||1)));
-        if(editing){editing.name=t;editing.per=per.value;editing.n=n;}
-        else S.habits.push({id:uid(),name:t,per:per.value,n:n});
+        if(editing){editing.name=t;}
+        else S.habits.push({id:uid(),name:t,per:'day',n:1});
         editId=null;save();render();
       }},editing?'Spara ändringar':'Lägg till vana'),
       editing?h('button',{class:'btn',onclick:function(){editId=null;render();}},'Avbryt'):null),
