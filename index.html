@@ -180,8 +180,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.14.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.15.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.15.0','All historik sparas. Tar du bort en vana eller sak att bocka i finns det du gjort kvar i Översikt och Kalender. Appen ber också telefonen att inte rensa datan.'],
   ['1.14.0','Alla vanor fylls i varje dag. Du behöver inte längre välja hur ofta.'],
   ['1.13.1','Steg och aktiva minuter är borttagna igen.'],
   ['1.13.0','Steg och aktiva minuter från Hälsa.'],
@@ -255,6 +256,7 @@ function applyTheme(){
 }
 applyTheme();
 autoSnap();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function loadSnaps(){try{var r=localStorage.getItem(SNAPKEY);return r?JSON.parse(r):[];}catch(e){return [];}}
 function saveSnaps(a){try{localStorage.setItem(SNAPKEY,JSON.stringify(a.slice(-20)));return true;}catch(e){return false;}}
@@ -282,6 +284,7 @@ function restoreSnap(id){
   }catch(e){}
   render();
 }
+function act(a){return (a||[]).filter(function(x){return !x.archived;});}
 function uid(){return 'x'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 
 function h(t,a){
@@ -497,7 +500,7 @@ function ideaList(){
 function ideaCard(){
   var list=ideaList(),d=new Date(),seed=d.getFullYear()*372+d.getMonth()*31+d.getDate();
   var idea=list[(seed+ideaShift)%list.length];
-  var exists=S.habits.some(function(x){return x.name.toLowerCase()===idea.toLowerCase();});
+  var exists=act(S.habits).some(function(x){return x.name.toLowerCase()===idea.toLowerCase();});
   var e=energyOf(d);
   return h('div',{class:'card idea'},
     h('p',{class:'muted',style:'font-size:13px'},e?(e<=2?'Något lugnt när du är trött':'Något för dig som har energi'):'Fyll i din energi så anpassas förslagen'),
@@ -566,7 +569,7 @@ function viewIdag(v){
   }
   v.append(h('h2',{},'Vanor'));
   var due=0,doneDue=0;
-  S.habits.forEach(function(hb){
+  act(S.habits).forEach(function(hb){
     var on=done.indexOf(hb.id)>=0;
     var open=perOf(hb)==='day'||on||progressOf(hb,now)<nOf(hb);
     if(open){due++;if(on)doneDue++;}
@@ -575,10 +578,10 @@ function viewIdag(v){
     h('div',{class:'bar'},h('i',{style:'width:'+(due?doneDue/due*100:0)+'%'})),
     h('span',{},doneDue+' av '+due+' klara')));
 
-  if(!S.habits.length){
+  if(!act(S.habits).length){
     v.append(h('div',{class:'empty'},'Du har inga vanor ännu. Lägg till din första under Anpassa.'));
   }
-  S.habits.forEach(function(hb){
+  act(S.habits).forEach(function(hb){
     var on=done.indexOf(hb.id)>=0,p=perOf(hb),n=nOf(hb),st=isToday?streakText(hb):'',sub;
     var met=false;
     if(p==='day'){sub=st;}
@@ -593,11 +596,11 @@ function viewIdag(v){
   });
 
   v.append(h('h2',{},isToday?'Vad har du gjort idag?':'Vad gjorde du?'));
-  if(!S.cats.length){
+  if(!act(S.cats).length){
     v.append(h('div',{class:'empty'},'Lägg till saker att bocka i under Anpassa.'));
   }else{
     var acts=actsOn(now);
-    v.append(h('div',{class:'cats'},S.cats.map(function(c){
+    v.append(h('div',{class:'cats'},act(S.cats).map(function(c){
       var on=acts.indexOf(c.id)>=0;
       return h('button',{class:'cat'+(on?' act':''),'aria-pressed':on?'true':'false',onclick:function(){toggleAct(c.id,now);}},
         h('span',{class:'ck',style:on?'background:'+c.color+';border-color:'+c.color:'border-color:'+c.color},on?'✓':''),c.name);
@@ -782,29 +785,31 @@ function viewOver(v){
   v.append(h('p',{class:'muted',style:'font-size:14px'},'Det här är samband, inte orsaker. Ju fler dagar du fyller i, desto säkrare blir mönstren.'));
 
   v.append(h('h2',{},'Vad du har gjort'));
-  if(!S.cats.length){
+  var shownCats=S.cats.filter(function(c){return !c.archived||days.some(function(d2){return actsOn(d2).indexOf(c.id)>=0;});});
+  if(!shownCats.length){
     v.append(h('div',{class:'empty'},'Inget att visa.'));
   }else{
     var last7a=days.slice(-7),laba=['sö','må','ti','on','to','fr','lö'];
-    S.cats.forEach(function(c){
+    shownCats.forEach(function(c){
       var cnt=days.filter(function(d3){return actsOn(d3).indexOf(c.id)>=0;}).length;
       v.append(h('div',{class:'card',style:'margin-bottom:10px'},
-        h('div',{class:'row',style:'justify-content:space-between'},h('span',{class:'row',style:'gap:8px'},h('i',{class:'dot',style:'background:'+c.color}),h('b',{},c.name)),h('span',{class:'muted'},cnt+' av '+range+' dagar')),
+        h('div',{class:'row',style:'justify-content:space-between'},h('span',{class:'row',style:'gap:8px'},h('i',{class:'dot',style:'background:'+c.color}),h('b',{},c.name+(c.archived?' (borttagen)':''))),h('span',{class:'muted'},cnt+' av '+range+' dagar')),
         h('div',{class:'week'},last7a.map(function(d5){return h('b',{style:actsOn(d5).indexOf(c.id)>=0?'background:'+c.color:''});})),
         h('div',{class:'wlabels'},last7a.map(function(d6){return h('span',{},laba[d6.getDay()]);}))));
     });
   }
 
   v.append(h('h2',{},'Vanor'));
-  if(!S.habits.length){v.append(h('div',{class:'empty'},'Inga vanor att visa.'));return;}
+  var shownHabits=S.habits.filter(function(hb){return !hb.archived||days.some(function(d2){return (S.done[dk(d2)]||[]).indexOf(hb.id)>=0;});});
+  if(!shownHabits.length){v.append(h('div',{class:'empty'},'Inga vanor att visa.'));return;}
   var last7=days.slice(-7),lab=['sö','må','ti','on','to','fr','lö'];
-  S.habits.forEach(function(hb){
+  shownHabits.forEach(function(hb){
     var cnt=days.filter(function(d4){return (S.done[dk(d4)]||[]).indexOf(hb.id)>=0;}).length;
     var p=perOf(hb),extra=null;
     if(p!=='day'){extra=h('p',{class:'muted',style:'margin-top:8px'},
       (p==='week'?'Den här veckan: ':'Den här månaden: ')+progressOf(hb)+' av '+nOf(hb));}
     v.append(h('div',{class:'card',style:'margin-bottom:10px'},
-      h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('b',{},hb.name),h('span',{class:'muted',style:'flex:none;white-space:nowrap'},cnt+' av '+range+' dagar')),
+      h('div',{class:'row',style:'justify-content:space-between;align-items:flex-start'},h('b',{},hb.name+(hb.archived?' (borttagen)':'')),h('span',{class:'muted',style:'flex:none;white-space:nowrap'},cnt+' av '+range+' dagar')),
       h('div',{class:'week'},last7.map(function(d5){return h('b',{class:(S.done[dk(d5)]||[]).indexOf(hb.id)>=0?'on':''});})),
       h('div',{class:'wlabels'},last7.map(function(d6){return h('span',{},lab[d6.getDay()]);})),
       extra));
@@ -815,13 +820,13 @@ function viewAnpassa(v){
   v.append(h('header',{class:'hd'},h('h1',{},'Anpassa')));
 
   v.append(h('h2',{style:'margin-top:8px'},'Mina vanor'));
-  if(!S.habits.length)v.append(h('div',{class:'empty'},'Inga vanor ännu. Lägg till en nedan.'));
-  v.append(h('ul',{class:'list'},S.habits.map(function(hb){
+  if(!act(S.habits).length)v.append(h('div',{class:'empty'},'Inga vanor ännu. Lägg till en nedan.'));
+  v.append(h('ul',{class:'list'},act(S.habits).map(function(hb){
     return h('li',{},
       h('div',{class:'grow'},h('div',{},hb.name)),
       h('button',{class:'btn small',onclick:function(){editId=hb.id;render();window.scrollTo(0,document.body.scrollHeight*0.2);}},'Ändra'),
       h('button',{class:'x','aria-label':'Ta bort '+hb.name,onclick:function(){
-        S.habits=S.habits.filter(function(x){return x.id!==hb.id;});
+        hb.archived=true;
         if(editId===hb.id)editId=null;
         save();render();
       }},'×'));
@@ -839,7 +844,10 @@ function viewAnpassa(v){
         var t=hi.value.trim();
         if(!t){emsg.textContent='Skriv ett namn på vanan.';return;}
         if(editing){editing.name=t;}
-        else S.habits.push({id:uid(),name:t,per:'day',n:1});
+        else{
+          var old=S.habits.filter(function(x){return x.archived&&x.name.toLowerCase()===t.toLowerCase();})[0];
+          if(old)delete old.archived;else S.habits.push({id:uid(),name:t,per:'day',n:1});
+        }
         editId=null;save();render();
       }},editing?'Spara ändringar':'Lägg till vana'),
       editing?h('button',{class:'btn',onclick:function(){editId=null;render();}},'Avbryt'):null),
@@ -847,14 +855,14 @@ function viewAnpassa(v){
 
   v.append(h('h2',{},'Saker att bocka i'));
   v.append(h('p',{class:'muted',style:'margin-bottom:4px'},'Det här visas under “Vad har du gjort idag?” på Idag.'));
-  v.append(h('ul',{class:'list'},S.cats.map(function(c){
+  v.append(h('ul',{class:'list'},act(S.cats).map(function(c){
     var cp=h('input',{type:'color',value:c.color,'aria-label':'Färg för '+c.name});
     cp.addEventListener('change',function(){c.color=cp.value;save();});
     var ni=h('input',{type:'text',value:c.name,'aria-label':'Namn på område',maxlength:'40'});
     ni.addEventListener('change',function(){var t=ni.value.trim();if(t){c.name=t;save();}else{ni.value=c.name;}});
     return h('li',{},cp,h('div',{class:'grow'},ni),
       h('button',{class:'x','aria-label':'Ta bort '+c.name,onclick:function(){
-        S.cats=S.cats.filter(function(x){return x.id!==c.id;});
+        c.archived=true;
         save();render();
       }},'×'));
   })));
