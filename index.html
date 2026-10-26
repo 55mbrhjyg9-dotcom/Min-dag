@@ -192,8 +192,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.16.1', SNAPKEY='min-dag-snapshots';
+var VERSION='1.17.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.17.0','Kalendern ligger nu överst i Översikt. Kalender-fliken är borttagen.'],
   ['1.16.1','Appen sparar en kopia av din data före varje uppdatering, som du hittar under Sparade versioner.'],
   ['1.16.0','Ny flik Mål: skriv dina mål och bocka av delmål.'],
   ['1.15.0','All historik sparas. Tar du bort en vana eller sak att bocka i finns det du gjort kvar i Översikt och Kalender. Appen ber också telefonen att inte rensa datan.'],
@@ -214,7 +215,7 @@ var CHANGELOG=[
   ['1.2.0','Egna vanor med frekvens, tidsområden som Socialt, Charlie, Sömn och Träning samt dagsfördelning.'],
   ['1.0.0','Första versionen med vanor, tidsloggning och översikt.']
 ];
-var TABS=[['idag','Idag'],['mal','Mål'],['kalender','Kalender'],['over','Översikt'],['anpassa','Anpassa']];
+var TABS=[['idag','Idag'],['mal','Mål'],['over','Översikt'],['anpassa','Anpassa']];
 var tab='idag', range=7, confirmReset=false, tickTimer=null, selDay=0, editId=null, confirmSnap=null;
 var calY=new Date().getFullYear(), calM=new Date().getMonth();
 
@@ -644,7 +645,6 @@ function viewKal(v){
   var today=new Date(),y=calY,m=calM;
   var first=new Date(y,m,1),last=new Date(y,m+1,0);
   var isCur=y===today.getFullYear()&&m===today.getMonth();
-  v.append(h('header',{class:'hd'},h('p',{class:'date'},'Kalender'),h('h1',{},'Tillbaka i tiden')));
   var next=h('button',{class:'x','aria-label':'Nästa månad',onclick:function(){if(!isCur){calM++;if(calM>11){calM=0;calY++;}render();}}},'›');
   if(isCur)next.setAttribute('disabled','disabled');
   v.append(h('div',{class:'daynav'},
@@ -680,7 +680,7 @@ function viewKal(v){
     return h('span',{},h('i',{class:'dot',style:'background:'+MCOL[j]}),n);
   }).concat([h('span',{},'✓ = vanor gjorda'),h('span',{},'små prickar = vad du gjort'),h('span',{},h('i',{class:'dot nd2'}),'anteckning')])));
   v.append(h('p',{class:'muted',style:'margin-top:16px'},
-    moodDays?('Humör ifyllt '+moodDays+' dagar, snitt '+f1(moodSum/moodDays)+' av 4. '):'Inget humör ifyllt den här månaden. ',
+    moodDays?('Humör ifyllt '+moodDays+(moodDays===1?' dag':' dagar')+', snitt '+f1(moodSum/moodDays)+' av 4. '):'Inget humör ifyllt den här månaden. ',
     noteDays?(noteDays+(noteDays===1?' dag':' dagar')+' med anteckning.'):''));
   v.append(h('p',{class:'muted',style:'margin-top:8px;font-size:14px'},'Tryck på en dag för att se den och fylla i humör, vanor och dagbok i efterhand.'));
 }
@@ -754,6 +754,9 @@ function patterns(v,vals,days,word,Label){
 
 function viewOver(v){
   v.append(h('header',{class:'hd'},h('h1',{},'Översikt')));
+  v.append(h('h2',{style:'margin-top:8px'},'Kalender'));
+  viewKal(v);
+  v.append(h('h2',{},'Senaste dagarna'));
   v.append(h('div',{class:'seg2'},[7,30,90].map(function(n){
     return h('button',{class:range===n?'on':'','aria-pressed':range===n?'true':'false',onclick:function(){range=n;render();}},n+' dagar');
   })));
@@ -768,7 +771,7 @@ function viewOver(v){
     v.append(h('div',{class:'empty'},'Fyll i hur du mår under Idag, så visas ditt humör här.'));
   }else{
     var avg=logged.reduce(function(a,b){return a+b;},0)/logged.length;
-    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(avg)+' av 4, baserat på '+logged.length+' ifyllda dagar.'));
+    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(avg)+' av 4, baserat på '+logged.length+(logged.length===1?' ifylld dag.':' ifyllda dagar.')));
     v.append(h('div',{class:'cols',role:'img','aria-label':'Humör per dag'},mvals.map(function(m){
       var col=h('div',{class:'col'});
       col.append(h('div',{style:'height:'+(m?m/4*100:4)+'%;border-radius:5px;background:'+(m?MCOL[m-1]:'var(--line)')}));
@@ -784,7 +787,7 @@ function viewOver(v){
     v.append(h('div',{class:'empty'},'Fyll i din energi under Idag, så visas den här.'));
   }else{
     var eavg=elog.reduce(function(a,b){return a+b;},0)/elog.length;
-    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(eavg)+' av 4, baserat på '+elog.length+' ifyllda dagar.'));
+    v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Snitt '+f1(eavg)+' av 4, baserat på '+elog.length+(elog.length===1?' ifylld dag.':' ifyllda dagar.')));
     v.append(h('div',{class:'cols',role:'img','aria-label':'Energi per dag'},evals.map(function(m){
       var col=h('div',{class:'col'});
       col.append(h('div',{style:'height:'+(m?m/4*100:4)+'%;border-radius:5px;background:'+(m?MCOL[m-1]:'var(--line)')}));
@@ -1043,7 +1046,7 @@ function viewMal(v){
   v.append(h('div',{class:'edrow'},gi,h('button',{class:'btn small primary',onclick:addG},'Lägg till')));
 }
 
-var VIEWS={idag:viewIdag,mal:viewMal,kalender:viewKal,over:viewOver,anpassa:viewAnpassa};
+var VIEWS={idag:viewIdag,mal:viewMal,over:viewOver,anpassa:viewAnpassa};
 
 function render(){
   applyTheme();
@@ -1056,13 +1059,14 @@ function render(){
   TABS.forEach(function(x){
     t.append(h('button',{class:tab===x[0]?'on':'','aria-current':tab===x[0]?'page':'false',onclick:function(){
       if(x[0]==='idag'&&selDay!==0&&tab==='idag'){selDay=0;render();window.scrollTo(0,0);return;}
-      if(tab!==x[0]){if(x[0]==='idag')selDay=0;if(x[0]==='kalender'){var sd=selDate();calY=sd.getFullYear();calM=sd.getMonth();}tab=x[0];confirmReset=false;render();window.scrollTo(0,0);try{location.hash=x[0];}catch(e){}}
+      if(tab!==x[0]){if(x[0]==='idag')selDay=0;if(x[0]==='over'){var sd=selDate();calY=sd.getFullYear();calM=sd.getMonth();}tab=x[0];confirmReset=false;render();window.scrollTo(0,0);try{location.hash=x[0];}catch(e){}}
     }},h('i'),x[1]));
   });
 }
 
 function fromHash(){
   var hs=(location.hash||'').replace('#','');
+  if(hs==='kalender')hs='over';
   if(VIEWS[hs])tab=hs;
 }
 fromHash();
