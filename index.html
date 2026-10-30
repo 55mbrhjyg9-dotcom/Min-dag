@@ -195,8 +195,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.18.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.19.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.19.0','Backup-fil: spara all din data som en fil i Filer eller iCloud och läs in den igen om något försvinner. Appen påminner dig en gång i veckan.'],
   ['1.18.0','Ny del “Annat att hålla koll på” för till exempel alkohol och onyttigt, bara ja eller nej. Översikt visar samband och hur dagen efter blev.'],
   ['1.17.0','Kalendern ligger nu överst i Översikt. Kalender-fliken är borttagen.'],
   ['1.16.1','Appen sparar en kopia av din data före varje uppdatering, som du hittar under Sparade versioner.'],
@@ -458,6 +459,77 @@ function trk(id){
 function nextDay(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1);return x;}
 function prevDay(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);return x;}
 
+/* ---------- backup-fil ---------- */
+var backupHidden=false, backupMsg='';
+function hasData(d){
+  d=d||S;
+  return Object.keys(d.done||{}).length||Object.keys(d.mood||{}).length||Object.keys(d.notes||{}).length||Object.keys(d.acts||{}).length||Object.keys(d.energy||{}).length||Object.keys(d.sleep||{}).length||Object.keys(d.tr||{}).length||(d.goals||[]).length;
+}
+function shortDate(ms){return new Date(ms).toLocaleDateString('sv-SE',{day:'numeric',month:'short',year:'numeric'});}
+function backupDue(){
+  if(!hasData())return false;
+  return !S.lastBackup||Date.now()-S.lastBackup>7*86400000;
+}
+function saveBackupFile(){
+  S.lastBackup=Date.now();
+  var json=JSON.stringify(S,null,1),name='min-dag-backup-'+dk(new Date())+'.json';
+  var ok=function(){save();backupMsg='Backup sparad '+shortDate(S.lastBackup)+'.';render();};
+  var fail=function(){delete S.lastBackup;save();backupMsg='Backupen sparades inte.';render();};
+  var file=null;
+  try{file=new File([json],name,{type:'application/json'});}catch(e){}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})){
+    navigator.share({files:[file],title:'Min dag backup'}).then(ok,function(e){
+      if(e&&e.name==='AbortError'){fail();}else{download();}
+    });
+    return;
+  }
+  download();
+  function download(){
+    try{
+      var url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+      var a=h('a',{href:url,download:name});
+      document.body.append(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},4000);
+      ok();
+    }catch(e){fail();}
+  }
+}
+function loadBackupFile(onDone){
+  var inp=h('input',{type:'file',accept:'.json,application/json,text/plain',style:'display:none'});
+  inp.addEventListener('change',function(){
+    var f=inp.files&&inp.files[0];inp.remove();
+    if(!f)return;
+    var r=new FileReader();
+    r.onload=function(){
+      try{
+        var d=JSON.parse(r.result);
+        if(!d||!Array.isArray(d.habits)||!Array.isArray(d.cats))throw new Error('x');
+        addSnap('Före inläsning av backup');
+        S=migrate(d);S.appv=VERSION;save();
+        backupMsg='Backupen är inläst. All data från filen finns nu i appen.';
+      }catch(e){backupMsg='Filen gick inte att läsa. Välj en fil som heter min-dag-backup.';}
+      if(onDone)onDone();render();
+    };
+    r.readAsText(f);
+  });
+  document.body.append(inp);inp.click();
+}
+function backupCard(){
+  if(!hasData()&&!loadSnaps().length){
+    return h('div',{class:'card idea',style:'margin-bottom:6px'},
+      h('p',{class:'idea-t',style:'font-size:18px'},'Har du en backup?'),
+      h('p',{class:'muted',style:'font-size:14px'},'Om din data har försvunnit kan du läsa in din senaste backup-fil.'),
+      h('div',{class:'row'},h('button',{class:'btn small primary',onclick:function(){loadBackupFile();}},'Läs in backup-fil')));
+  }
+  if(backupHidden||!backupDue())return null;
+  return h('div',{class:'card idea',style:'margin-bottom:6px'},
+    h('p',{class:'idea-t',style:'font-size:18px'},'Dags att spara en backup'),
+    h('p',{class:'muted',style:'font-size:14px'},S.lastBackup?'Senaste backup: '+shortDate(S.lastBackup)+'. Spara filen i Filer eller iCloud Drive.':'Spara en fil med all din data i Filer eller iCloud Drive, så finns den kvar om något försvinner.'),
+    h('div',{class:'row',style:'flex-wrap:wrap;gap:8px'},
+      h('button',{class:'btn small primary',onclick:saveBackupFile},'Spara backup'),
+      h('button',{class:'btn small',onclick:function(){backupHidden=true;render();}},'Senare')));
+}
+
 /* ---------- humör ---------- */
 var MOODS=['Dåligt','Så där','Bra','Jättebra'];
 var MCOL=['#F4958E','#F8C471','#B5DE95','#7FCFAE'];
@@ -603,6 +675,7 @@ function refreshBtn(){
 function viewIdag(v){
   var now=selDate(),isToday=selDay===0,k=dk(now),done=S.done[k]||[];
   v.append(h('header',{class:'hd'},refreshBtn(),h('p',{class:'date'},fmtDate(now)),h('h1',{},isToday?greeting()+(S.name?', '+S.name:''):selDay===-1?'Igår':'Tillbaka i tiden')));
+  if(isToday){var bc=backupCard();if(bc)v.append(bc);if(backupMsg){v.append(h('p',{class:'muted',role:'status',style:'margin:6px 0'},backupMsg));backupMsg='';}}
   v.append(dayNav());
   if(!isToday){
     v.append(h('div',{class:'row',style:'justify-content:space-between;margin:4px 0 6px'},
@@ -1018,7 +1091,15 @@ function viewAnpassa(v){
     return h('button',{class:on?'on':'','aria-pressed':on?'true':'false',onclick:function(){S.theme=o[0];save();render();}},o[1]);
   })));
 
-  v.append(h('h2',{},'Säkerhetskopia'));
+  v.append(h('h2',{},'Backup-fil'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Spara all din data som en fil i Filer eller iCloud Drive. Om något försvinner läser du in den senaste filen igen. Appen påminner dig en gång i veckan.'));
+  v.append(h('p',{style:'margin-bottom:10px'},S.lastBackup?'Senaste backup: '+shortDate(S.lastBackup):'Ingen backup sparad än.'));
+  v.append(h('div',{class:'row',style:'flex-wrap:wrap;gap:8px'},
+    h('button',{class:'btn small primary',onclick:saveBackupFile},'Spara backup-fil'),
+    h('button',{class:'btn small',onclick:function(){loadBackupFile(function(){tab='anpassa';});}},'Läs in backup-fil')));
+  if(backupMsg){v.append(h('p',{class:'muted',role:'status',style:'margin-top:8px'},backupMsg));backupMsg='';}
+
+  v.append(h('h2',{},'Säkerhetskopia som text'));
   v.append(h('p',{class:'muted',style:'margin-bottom:10px'},'Datan sparas i den här webbläsaren på den här enheten. Kopiera texten nedan och spara den någonstans som backup, till exempel i en anteckning.'));
   var out=h('textarea',{readonly:'readonly','aria-label':'Säkerhetskopia'});
   out.value=JSON.stringify(S);
