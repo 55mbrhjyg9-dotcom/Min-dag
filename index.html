@@ -167,7 +167,7 @@ input[type=color]{width:44px;height:44px;border:none;background:none;padding:0;f
 
 nav{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:center;background:var(--surface);border-top:1.5px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));z-index:5}
 nav .in{display:flex;width:100%;max-width:560px;gap:4px}
-nav button{flex:1;min-height:52px;border:none;background:none;border-radius:12px;font-weight:600;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+nav button{flex:1;min-height:52px;border:none;background:none;border-radius:12px;font-weight:600;font-size:12px;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
 nav button i{width:22px;height:4px;border-radius:99px;background:transparent}
 nav button.on{color:var(--ink)}
 nav button.on i{background:var(--sun);width:30px}
@@ -196,6 +196,8 @@ nav button.on{color:var(--ink)}
 .arrows .x{width:38px;height:38px;font-size:18px}
 .gl{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
 .cat .cn{min-width:0;overflow-wrap:anywhere}
+.moods.three{grid-template-columns:repeat(3,1fr)}
+nav button{white-space:nowrap;padding:0 2px;min-width:0}
 </style>
 </head>
 <body>
@@ -206,8 +208,9 @@ nav button.on{color:var(--ink)}
 (function(){
 'use strict';
 var KEY='min-dag-v1';
-var VERSION='1.22.0', SNAPKEY='min-dag-snapshots';
+var VERSION='1.23.0', SNAPKEY='min-dag-snapshots';
 var CHANGELOG=[
+  ['1.23.0','Ny flik “Mat”: fyll i varje måltid, till exempel fiberrikt eller glutenfritt, och hur magen kändes efteråt. Fliken visar vad som oftast ger ont i magen.'],
   ['1.22.0','Koppla vanor och saker du gör till dina mål. När du bockar i till exempel Träning syns det på målet under Mål, med hur många dagar du gjort något för målet.'],
   ['1.21.0','Ny flik “Att göra”: skriv upp saker du vill göra, prioritera dem med pilarna och välj vad du ska göra idag. Det du valt visas på Idag.'],
   ['1.20.0','Ny vana “Göra något snällt” varje dag, med ett förslag på något snällt du kan göra för någon.'],
@@ -234,7 +237,7 @@ var CHANGELOG=[
   ['1.2.0','Egna vanor med frekvens, tidsområden som Socialt, Charlie, Sömn och Träning samt dagsfördelning.'],
   ['1.0.0','Första versionen med vanor, tidsloggning och översikt.']
 ];
-var TABS=[['idag','Idag'],['todo','Att göra'],['mal','Mål'],['over','Översikt'],['anpassa','Anpassa']];
+var TABS=[['idag','Idag'],['todo','Att göra'],['mal','Mål'],['mat','Mat'],['over','Översikt'],['anpassa','Anpassa']];
 var tab='idag', range=7, confirmReset=false, tickTimer=null, selDay=0, editId=null, confirmSnap=null;
 var calY=new Date().getFullYear(), calM=new Date().getMonth();
 
@@ -258,7 +261,9 @@ function defaults(){
       {id:'t1',name:'Alkohol',color:'#8C9BAB'},
       {id:'t2',name:'Onyttigt',color:'#B3A089'}
     ],
-    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, tr:{}, goals:[], todos:[], entries:[], running:null
+    done:{}, mood:{}, energy:{}, sleep:{}, notes:{}, acts:{}, tr:{}, goals:[], todos:[], meals:{},
+    foodTags:[{id:'f1',name:'Fiberrikt'},{id:'f2',name:'Glutenfritt'},{id:'f3',name:'Sockerfritt'},{id:'f4',name:'Onyttigt'},{id:'f5',name:'Hetsätit'}],
+    entries:[], running:null
   };
 }
 function migrate(d){
@@ -324,7 +329,7 @@ function addSnap(label){
   return saveSnaps(a);
 }
 function autoSnap(){
-  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length||Object.keys(S.tr||{}).length||(S.goals||[]).length||(S.todos||[]).length;
+  var has=S.entries.length||Object.keys(S.done).length||Object.keys(S.mood||{}).length||Object.keys(S.notes||{}).length||Object.keys(S.acts||{}).length||Object.keys(S.energy||{}).length||Object.keys(S.sleep||{}).length||Object.keys(S.tr||{}).length||(S.goals||[]).length||(S.todos||[]).length||Object.keys(S.meals||{}).length;
   if(!has)return;
   var a=loadSnaps(),today=dk(new Date());
   var last=a.filter(function(x){return x.label==='Automatisk';}).pop();
@@ -483,7 +488,7 @@ function prevDay(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()-1);r
 var backupHidden=false, backupMsg='';
 function hasData(d){
   d=d||S;
-  return Object.keys(d.done||{}).length||Object.keys(d.mood||{}).length||Object.keys(d.notes||{}).length||Object.keys(d.acts||{}).length||Object.keys(d.energy||{}).length||Object.keys(d.sleep||{}).length||Object.keys(d.tr||{}).length||(d.goals||[]).length||(d.todos||[]).length;
+  return Object.keys(d.done||{}).length||Object.keys(d.mood||{}).length||Object.keys(d.notes||{}).length||Object.keys(d.acts||{}).length||Object.keys(d.energy||{}).length||Object.keys(d.sleep||{}).length||Object.keys(d.tr||{}).length||(d.goals||[]).length||(d.todos||[]).length||Object.keys(d.meals||{}).length;
 }
 function shortDate(ms){return new Date(ms).toLocaleDateString('sv-SE',{day:'numeric',month:'short',year:'numeric'});}
 function backupDue(){
@@ -1113,6 +1118,23 @@ function viewAnpassa(v){
       save();render();
     }},'Lägg till')));
 
+  v.append(h('h2',{},'Val för mat'));
+  v.append(h('p',{class:'muted',style:'margin-bottom:4px'},'Det här kan du välja när du fyller i en måltid under Mat.'));
+  v.append(h('ul',{class:'list'},act(S.foodTags).map(function(c){
+    var ni=h('input',{type:'text',value:c.name,'aria-label':'Namn',maxlength:'30'});
+    ni.addEventListener('change',function(){var t=ni.value.trim();if(t){c.name=t;save();}else{ni.value=c.name;}});
+    return h('li',{},h('div',{class:'grow'},ni),
+      h('button',{class:'x','aria-label':'Ta bort '+c.name,onclick:function(){c.archived=true;save();render();}},'×'));
+  })));
+  var fi=h('input',{type:'text',placeholder:'Till exempel Laktosfritt','aria-label':'Nytt val för mat',maxlength:'30'});
+  v.append(h('div',{class:'row',style:'margin-top:12px'},fi,
+    h('button',{class:'btn primary',onclick:function(){
+      var t=fi.value.trim();if(!t)return;
+      var old=S.foodTags.filter(function(x){return x.archived&&x.name.toLowerCase()===t.toLowerCase();})[0];
+      if(old)delete old.archived;else S.foodTags.push({id:uid(),name:t});
+      save();render();
+    }},'Lägg till')));
+
   v.append(h('h2',{},'Ditt namn'));
   var nm=h('input',{id:'name',type:'text',value:S.name||'',placeholder:'Ditt namn','aria-label':'Ditt namn',maxlength:'30'});
   nm.addEventListener('change',function(){S.name=nm.value.trim();save();});
@@ -1417,7 +1439,141 @@ function todayTodos(v){
   v.append(h('button',{class:'btn small',onclick:function(){goTab('todo');}},'Ändra i listan'));
 }
 
-var VIEWS={idag:viewIdag,todo:viewTodo,mal:viewMal,over:viewOver,anpassa:viewAnpassa};
+/* ---------- mat ---------- */
+var MEALS=['Frukost','Lunch','Middag','Mellanmål'];
+var BELLY=['Mår bra','Lite ont','Ont'];
+var BCOL=[MCOL[3],MCOL[1],MCOL[0]];
+var matDay=0, editMeal=null, mealForm=null, confirmMeal=null;
+function guessMeal(){var hr=new Date().getHours();return hr<10?'Frukost':hr<14?'Lunch':hr<17?'Mellanmål':hr<21?'Middag':'Mellanmål';}
+function newForm(){return {t:guessMeal(),tags:[],belly:0,text:''};}
+function matDate(){var d=new Date();d.setDate(d.getDate()+matDay);return d;}
+function mealsOn(d){return (S.meals&&S.meals[dk(d)])||[];}
+function ftag(id){for(var i=0;i<S.foodTags.length;i++)if(S.foodTags[i].id===id)return S.foodTags[i];return {id:id,name:'Borttagen'};}
+function bellyIcon(i){
+  var st='stroke="'+FACE+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+  var s='<svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22" fill="'+BCOL[i]+'"/><circle cx="17" cy="21" r="2.6" fill="'+FACE+'"/><circle cx="31" cy="21" r="2.6" fill="'+FACE+'"/>';
+  if(i===0)s+='<path d="M16 29 Q24 37 32 29" '+st+'/>';
+  else if(i===1)s+='<path d="M17 32 Q24 30 31 33" '+st+'/>';
+  else s+='<path d="M16 35 Q24 27 32 35" '+st+'/><path d="M12 14 L19 17 M36 14 L29 17" '+st+'/>';
+  var sp=document.createElement('span');sp.className='ico';sp.innerHTML=s+'</svg>';return sp;
+}
+function bellyRow(cur,onPick){
+  return h('div',{class:'moods three sm'+(cur?' has':''),role:'group','aria-label':'Hur mådde magen efteråt'},BELLY.map(function(m,i){
+    var val=i+1;
+    return h('button',{class:'mood'+(cur===val?' on':''),'aria-pressed':cur===val?'true':'false','aria-label':m,onclick:function(){onPick(cur===val?0:val);}},bellyIcon(i),h('small',{},m));
+  }));
+}
+function saveMeal(){
+  var f=mealForm,k=dk(matDate());
+  if(!S.meals)S.meals={};
+  var a=(S.meals[k]||[]).slice();
+  var rec={id:editMeal||uid(),t:f.t,tags:f.tags.slice(),belly:f.belly,text:f.text.trim()};
+  if(editMeal)a=a.map(function(m){return m.id===editMeal?rec:m;});else a.push(rec);
+  S.meals[k]=a;editMeal=null;confirmMeal=null;mealForm=newForm();save();render();
+}
+function delMeal(id){
+  var k=dk(matDate()),a=(S.meals[k]||[]).filter(function(m){return m.id!==id;});
+  if(a.length)S.meals[k]=a;else delete S.meals[k];
+  editMeal=null;confirmMeal=null;mealForm=newForm();save();render();
+}
+function mealCard(m){
+  return h('div',{class:'card stack',style:'margin-bottom:10px;gap:10px'},
+    h('div',{class:'goal-h'},h('h3',{style:'font-size:18px'},m.t),
+      h('button',{class:'btn small',onclick:function(){editMeal=m.id;confirmMeal=null;mealForm={t:m.t,tags:m.tags.slice(),belly:m.belly||0,text:m.text||''};focusId='meal-form';render();}},'Ändra')),
+    m.text?h('p',{style:'overflow-wrap:anywhere'},m.text):null,
+    m.tags.length?h('div',{class:'ops',style:'margin:0'},m.tags.map(function(id){return h('span',{class:'pill',style:'display:inline-flex;align-items:center'},ftag(id).name);})):null,
+    m.belly?h('p',{class:'row',style:'gap:8px'},h('i',{class:'dot',style:'background:'+BCOL[m.belly-1]}),'Magen efteråt: '+BELLY[m.belly-1])
+      :h('div',{class:'stack',style:'gap:6px'},h('span',{class:'muted',style:'font-size:13px'},'Hur mådde magen efteråt?'),bellyRow(0,function(v){m.belly=v;save();render();})));
+}
+function mealFormCard(){
+  if(!mealForm)mealForm=newForm();
+  var f=mealForm;
+  var tx=h('input',{type:'text',class:'note',placeholder:'Vad åt du? (valfritt)','aria-label':'Vad åt du',maxlength:'120'});
+  tx.value=f.text;
+  tx.addEventListener('input',function(){f.text=tx.value;});
+  var lbl=function(t){return h('span',{class:'muted',style:'font-size:13px'},t);};
+  return h('div',{class:'card stack',id:'meal-form',tabindex:'-1'},
+    h('div',{class:'stack',style:'gap:6px'},lbl('Måltid'),
+      h('div',{class:'ops',style:'margin:0'},MEALS.map(function(x){
+        var on=f.t===x;
+        return h('button',{class:'pill'+(on?' on':''),'aria-pressed':on?'true':'false',onclick:function(){f.t=x;render();}},x);
+      }))),
+    tx,
+    h('div',{class:'stack',style:'gap:6px'},lbl('Hur var maten?'),
+      act(S.foodTags).length?h('div',{class:'ops',style:'margin:0'},act(S.foodTags).map(function(c){
+        var on=f.tags.indexOf(c.id)>=0;
+        return h('button',{class:'pill'+(on?' on':''),'aria-pressed':on?'true':'false',onclick:function(){
+          var i=f.tags.indexOf(c.id);if(i>=0)f.tags.splice(i,1);else f.tags.push(c.id);render();
+        }},(on?'✓ ':'')+c.name);
+      })):h('p',{class:'muted'},'Lägg till val under Anpassa.')),
+    h('div',{class:'stack',style:'gap:6px'},lbl('Hur mådde magen efteråt? Du kan fylla i det senare.'),
+      bellyRow(f.belly,function(v){f.belly=v;render();})),
+    h('div',{class:'row',style:'flex-wrap:wrap;gap:8px'},
+      h('button',{class:'btn primary',style:'flex:1',onclick:saveMeal},editMeal?'Spara ändringar':'Spara måltid'),
+      editMeal?h('button',{class:'btn',onclick:function(){editMeal=null;confirmMeal=null;mealForm=newForm();render();}},'Avbryt'):null,
+      editMeal?h('button',{class:'btn warn',onclick:function(){
+        if(confirmMeal!==editMeal){confirmMeal=editMeal;render();return;}
+        delMeal(editMeal);
+      }},confirmMeal===editMeal?'Tryck igen':'Ta bort'):null));
+}
+function hurt(m){return m.belly>=2;}
+function pct(a){return a.length?Math.round(a.filter(hurt).length/a.length*100):0;}
+function matWeek(v){
+  var days=[],i;for(i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);days.push(d);}
+  var lab=['sö','må','ti','on','to','fr','lö'];
+  v.append(h('h2',{},'Magen senaste veckan'));
+  v.append(h('div',{class:'week'},days.map(function(d){
+    var w=0;mealsOn(d).forEach(function(m){if(m.belly>w)w=m.belly;});
+    return h('b',{style:w?'background:'+BCOL[w-1]:''});
+  })));
+  v.append(h('div',{class:'wlabels'},days.map(function(d){return h('span',{},lab[d.getDay()]);})));
+  v.append(h('div',{class:'legend'},BELLY.map(function(n,j){return h('span',{},h('i',{class:'dot',style:'background:'+BCOL[j]}),n);})));
+  v.append(h('p',{class:'muted',style:'font-size:13px;margin-top:6px'},'Färgen visar hur magen mådde efter dagens sämsta måltid.'));
+}
+function matInsights(v){
+  var r=[],i;
+  for(i=0;i<30;i++){var d=new Date();d.setDate(d.getDate()-i);mealsOn(d).forEach(function(m){if(m.belly)r.push(m);});}
+  v.append(h('h2',{},'Vad ger ont i magen?'));
+  if(r.length<5){
+    v.append(h('div',{class:'empty'},'Fyll i hur magen kändes efter minst 5 måltider så visas mönster här. Du har fyllt i '+r.length+' hittills.'));
+    return;
+  }
+  v.append(h('p',{class:'muted',style:'margin-bottom:6px'},'Senaste 30 dagarna: ont i magen efter '+r.filter(hurt).length+' av '+r.length+' måltider ('+pct(r)+' %).'));
+  var rows=[];
+  var add=function(name,fn){
+    var a=r.filter(fn),b=r.filter(function(m){return !fn(m);});
+    if(a.length<2||b.length<2)return;
+    rows.push({name:name,n:a.length,p:pct(a),q:pct(b)});
+  };
+  S.foodTags.forEach(function(c){add(c.name,function(m){return m.tags.indexOf(c.id)>=0;});});
+  MEALS.forEach(function(x){add(x,function(m){return m.t===x;});});
+  rows.sort(function(x,y){return (y.p-y.q)-(x.p-x.q);});
+  rows.forEach(function(x){
+    v.append(h('div',{class:'hbar'},
+      h('div',{class:'top'},h('b',{},x.name),h('span',{class:'muted'},x.p+' % ont')),
+      h('div',{class:'track'},h('i',{style:'width:'+Math.max(x.p,2)+'%;background:'+(x.p>x.q?BCOL[2]:BCOL[0])})),
+      h('p',{class:'muted',style:'font-size:13px;margin-top:4px'},x.n+' måltider. Övriga måltider: '+x.q+' % ont.')));
+  });
+  v.append(h('p',{class:'muted',style:'font-size:14px;margin-top:8px'},'Det här är samband, inte orsaker. Ju fler måltider du fyller i, desto säkrare blir mönstren.'));
+}
+function viewMat(v){
+  if(!S.meals)S.meals={};
+  var d=matDate(),isToday=matDay===0;
+  var go=function(n){matDay=n;editMeal=null;confirmMeal=null;mealForm=newForm();render();};
+  v.append(h('header',{class:'hd'},h('p',{class:'date'},'Mat och mage'),h('h1',{},'Mat')));
+  var next=h('button',{class:'x','aria-label':'Nästa dag',onclick:function(){if(matDay<0)go(matDay+1);}},'›');
+  if(isToday)next.setAttribute('disabled','disabled');
+  v.append(h('div',{class:'daynav'},h('button',{class:'x','aria-label':'Föregående dag',onclick:function(){go(matDay-1);}},'‹'),h('b',{},dayTitle(matDay,d)),next));
+  var ms=mealsOn(d);
+  if(!ms.length)v.append(h('div',{class:'empty',style:'margin:8px 0 4px'},isToday?'Inga måltider idag ännu.':'Inga måltider den här dagen.'));
+  else ms.forEach(function(m){v.append(mealCard(m));});
+  v.append(h('h2',{},editMeal?'Ändra måltid':'Lägg till måltid'));
+  v.append(mealFormCard());
+  matWeek(v);
+  matInsights(v);
+}
+
+var VIEWS={idag:viewIdag,todo:viewTodo,mal:viewMal,mat:viewMat,over:viewOver,anpassa:viewAnpassa};
 
 function render(){
   applyTheme();
